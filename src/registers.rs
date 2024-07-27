@@ -26,7 +26,7 @@ impl Registers {
     pub fn new() -> Registers {
         Self {
             program_counter: 0,
-            stack_pointer: 0,
+            stack_pointer: 0x0100,
             accumulator: 0,
             index_x: 0,
             index_y: 0,
@@ -103,9 +103,31 @@ impl Registers {
     /*
      * Get bit "getter" methods
      */
-    fn get_nth_status_bit(&mut self, n: u8) -> u8 {}
+    fn get_nth_status_bit(&mut self, n: u8) -> u8 {
+        self.processor_status & (1 << n)
+    }
 
-    pub fn set_carry(&mut self) {
-        self.set_nth_status_bit(0);
+    pub fn get_carry(&mut self) -> u8 {
+        self.get_nth_status_bit(0)
+    }
+
+    pub fn get_zero(&mut self) -> u8 {
+        self.get_nth_status_bit(1)
+    }
+
+    pub fn get_interrupt_disable(&mut self) -> u8 {
+        self.get_nth_status_bit(2)
+    }
+
+    pub fn get_break(&mut self) -> u8 {
+        self.get_nth_status_bit(3)
+    }
+
+    pub fn get_overflow(&mut self) -> u8 {
+        self.get_nth_status_bit(4)
+    }
+
+    pub fn get_neg(&mut self) -> u8 {
+        self.get_nth_status_bit(5)
     }
 }

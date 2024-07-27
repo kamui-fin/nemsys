@@ -17,6 +17,21 @@ impl Cpu {
     }
 
     /*
+     * Stack abstraction methods
+     */
+
+    fn stack_push(&mut self, val: u8) {
+        self.memory.buffer[self.registers.stack_pointer] = val;
+        self.registers.stack_pointer += 1;
+    }
+
+    fn stack_pop(&mut self) -> u8 {
+        let top = self.memory.buffer[self.registers.stack_pointer];
+        self.registers.stack_pointer -= 1;
+        top
+    }
+
+    /*
      * LDA - Load accumulator
      * Loads a byte of memory into the accumulator setting the zero and negative flags as appropriate.
      */
@@ -279,7 +294,9 @@ impl Cpu {
      *   Opcode: $48
      *   Cycles: 3
      */
-    fn pha(&mut self) {}
+    fn pha(&mut self) {
+        self.stack_push(self.registers.accumulator)
+    }
 
     /*
      *   PHP - Push Processor Status
@@ -288,7 +305,9 @@ impl Cpu {
      *   Opcode: $08
      *   Cycles: 3
      */
-    fn php(&mut self) {}
+    fn php(&mut self) {
+        self.stack_push(self.registers.processor_status)
+    }
 
     /*
      *   PLA - Pull Accumulator
@@ -297,7 +316,10 @@ impl Cpu {
      *   Opcode: $68
      *   Cycles: 4
      */
-    fn pla(&mut self) {}
+    fn pla(&mut self) {
+        let val = self.stack_pop();
+        self.lda_immediate(val);
+    }
 
     /*
      *   PLP - Pull Processor Status
@@ -306,7 +328,10 @@ impl Cpu {
      *   Opcode: $28
      *   Cycles: 4
      */
-    fn plp(&mut self) {}
+    fn plp(&mut self) {
+        let val = self.stack_pop();
+        self.registers.processor_status = val;
+    }
 
     /*
      *   JMP - Jump
@@ -333,7 +358,10 @@ impl Cpu {
      *   Opcode: $20
      *   Cycles: 6
      */
-    fn jsr(&mut self) {}
+    fn jsr(&mut self, address: u16) {
+        self.stack_push(self.registers.program_counter + (2 as u8));
+        self.registers.program_counter = address;
+    }
 
     /*
      *   BCC - Branch if Carry Clear
@@ -343,8 +371,9 @@ impl Cpu {
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
     fn bcc(&mut self, offset: u8) {
-        if (self.registers.ca)
-        self.registers.program_counter += offset;
+        if self.registers.get_carry() == 0 {
+            self.registers.program_counter += offset - 2;
+        }
     }
 
     /*
@@ -354,7 +383,11 @@ impl Cpu {
      *   Opcode: $B0
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bcs(&mut self) {}
+    fn bcs(&mut self, offset: u8) {
+        if self.registers.get_carry() == 1 {
+            self.registers.program_counter += offset - 2;
+        }
+    }
 
     /*
      *   BEQ - Branch if Equal
@@ -363,7 +396,11 @@ impl Cpu {
      *   Opcode: $F0
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn beq(&mut self) {}
+    fn beq(&mut self, offset: u8) {
+        if self.registers.get_zero() == 1 {
+            self.registers.program_counter += offset - 2;
+        }
+    }
 
     /*
      *   BMI - Branch if Minus
@@ -372,7 +409,11 @@ impl Cpu {
      *   Opcode: $30
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bmi(&mut self) {}
+    fn bmi(&mut self, offset: u8) {
+        if self.registers.get_neg() == 1 {
+            self.registers.program_counter += offset - 2;
+        }
+    }
 
     /*
      *   BNE - Branch if Not Equal
@@ -381,7 +422,11 @@ impl Cpu {
      *   Opcode: $D0
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bne(&mut self) {}
+    fn bne(&mut self, offset: u8) {
+        if self.registers.get_zero() == 0 {
+            self.registers.program_counter += offset - 2;
+        }
+    }
 
     /*
      *   BPL - Branch if Positive
@@ -390,7 +435,11 @@ impl Cpu {
      *   Opcode: $10
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bpl(&mut self) {}
+    fn bpl(&mut self, offset: u8) {
+        if self.registers.get_neg() == 0 {
+            self.registers.program_counter += offset - 2;
+        }
+    }
 
     /*
      *   BVC - Branch if Overflow Clear
@@ -399,7 +448,11 @@ impl Cpu {
      *   Opcode: $50
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bvc(&mut self) {}
+    fn bvc(&mut self, offset: u8) {
+        if self.registers.get_overflow() == 0 {
+            self.registers.program_counter += offset - 2;
+        }
+    }
 
     /*
      *   BVS - Branch if Overflow Set
@@ -408,7 +461,11 @@ impl Cpu {
      *   Opcode: $70
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bvs(&mut self) {}
+    fn bvs(&mut self, offset: u8) {
+        if self.registers.get_overflow() == 1 {
+            self.registers.program_counter += offset - 2;
+        }
+    }
 }
 
 #[cfg(test)]

@@ -311,17 +311,19 @@ impl Cpu {
     /*
      *   JMP - Jump
      *   Sets the program counter to the address specified by the operand.
+     *   For compatibility always ensure the indirect vector is not at the end of the page.
      */
 
     // Opcode: $4C
     // Cycles: 3
     fn jmp_absolute(&mut self, address: u16) {
-
+        self.registers.program_counter = address;
     }
 
     // Opcode: $6C
     // Cycles: 5
     fn jmp_indirect(&mut self, address: u16) {
+        self.registers.program_counter = self.memory.fetch_indirect(address);
     }
 
     /*
@@ -340,7 +342,10 @@ impl Cpu {
      *   Opcode: $90
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bcc(&mut self) {}
+    fn bcc(&mut self, offset: u8) {
+        if (self.registers.ca)
+        self.registers.program_counter += offset;
+    }
 
     /*
      *   BCS - Branch if Carry Set

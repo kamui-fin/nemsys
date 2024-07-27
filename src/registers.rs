@@ -36,6 +36,10 @@ impl Registers {
 
     // TODO: should we refactor or nah
 
+    /*
+     * Clear bit "setter" methods
+     */
+
     fn unset_nth_status_bit(&mut self, n: u8) {
         self.processor_status &= !(1 << (n - 1));
     }
@@ -64,6 +68,10 @@ impl Registers {
         self.unset_nth_status_bit(5);
     }
 
+    /*
+     * Set bit "setter" methods
+     */
+
     fn set_nth_status_bit(&mut self, n: u8) {
         self.processor_status = self.processor_status | (1 << n);
     }
@@ -90,5 +98,14 @@ impl Registers {
 
     pub fn set_neg(&mut self) {
         self.set_nth_status_bit(5);
+    }
+
+    /*
+     * Get bit "getter" methods
+     */
+    fn get_nth_status_bit(&mut self, n: u8) -> u8 {}
+
+    pub fn set_carry(&mut self) {
+        self.set_nth_status_bit(0);
     }
 }

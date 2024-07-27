@@ -36,6 +36,10 @@ impl Memory {
         self.fetch_zero_page(addr)
     }
 
+    pub(crate) fn fetch_indirect(&self, address: u16) -> u16 {
+        (self.fetch_absolute(address) + self.fetch_absolute(address + 1) * 256) as u16
+    }
+
     pub(crate) fn fetch_indirect_x(&self, addr_lower_byte: u8, index_x: u8) -> u8 {
         // val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256)
         let addr = self.fetch_zero_page(addr_lower_byte.wrapping_add(index_x))
@@ -52,5 +56,4 @@ impl Memory {
         );
         self.fetch_absolute(addr as u16)
     }
-
 }

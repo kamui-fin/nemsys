@@ -277,6 +277,177 @@ impl Cpu {
     }
 
     /*
+     *   AND - Logical AND operation
+     *   Performs a bit by bit AND operation on the accumulator contents using the contents of a byte of memory.
+     */
+
+    // Opcode: $29
+    // Cycles: 2
+    fn and_immediate(&mut self, value: u8){
+        self.registers.accumulator &= value;
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        }
+    } 
+
+    // Opcode: $25
+    // Cycles: 3
+    fn and_zero_page(&mut self, addr_lower_byte: u8){
+        self.registers.accumulator &= self.memory.fetch_zero_page(addr_lower_byte);
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        }
+    }
+
+    // Opcode: $35
+    // Cycles: 4
+    fn and_zero_page_x(&mut self, addr_lower_byte: u8){
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        
+        self.registers.accumulator &= value
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        }
+    }
+
+    // Opcode: $2D
+    // Cycles: 4
+    fn and_absolute(&mut self, address: u8){
+        let value = self.memory.fetch_absolute(address);
+
+        self.accumulator &= value
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        }
+    }
+
+    // Opcode: $3D
+    // Cycles: 4 (+1 if page crossed)
+    fn and_absolute_x(&mut self, address: u16){
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+
+        self.accumulator &= value
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        }
+    }
+
+    // Opcode: $39
+    // Cycles: 4 (+1 if page crossed)
+    fn and_absolute_y(&mut self, address: u16){
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+
+        self.accumulator &= value
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        }
+    }
+
+    // Opcode: $21
+    // Cycles: 6
+    fn and_indirect_x(&mut self, addr_lower_byte: u8){
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+        
+        self.accumulator &= value
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        }
+    }
+
+    // Opcode: $31
+    // Cycles: 5 (+1 if page crossed)
+    fn and_indirect_y(&mut self, addr_lower_byte: u8){
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
+        
+        self.accumulator &= value
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        } 
+    }
+
+    /*
      *   CLC - Clear Carry Flag
      *   Set the carry flag to zero.
      *

@@ -34,6 +34,36 @@ impl Registers {
         }
     }
 
+    // TODO: should we refactor or nah
+
+    fn unset_nth_status_bit(&mut self, n: u8) {
+        self.processor_status &= !(1 << (n - 1));
+    }
+
+    pub fn unset_carry(&mut self) {
+        self.unset_nth_status_bit(0);
+    }
+
+    pub fn unset_zero(&mut self) {
+        self.unset_nth_status_bit(1);
+    }
+
+    pub fn unset_interrupt_disable(&mut self) {
+        self.unset_nth_status_bit(2);
+    }
+
+    pub fn unset_break(&mut self) {
+        self.unset_nth_status_bit(3);
+    }
+
+    pub fn unset_overflow(&mut self) {
+        self.unset_nth_status_bit(4);
+    }
+
+    pub fn unset_neg(&mut self) {
+        self.unset_nth_status_bit(5);
+    }
+
     fn set_nth_status_bit(&mut self, n: u8) {
         self.processor_status = self.processor_status | (1 << n);
     }

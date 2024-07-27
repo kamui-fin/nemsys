@@ -269,8 +269,141 @@ impl Cpu {
      *   Cycles: 2
      */
     fn clc(&mut self) {
-        self.registers.set_carry(0);
+        self.registers.unset_carry()
     }
+
+    /*
+     *   PHA - Push accumulator
+     *   Pushes a copy of the accumulator on to the stack.
+     *
+     *   Opcode: $48
+     *   Cycles: 3
+     */
+    fn pha(&mut self) {}
+
+    /*
+     *   PHP - Push Processor Status
+     *   Pushes a copy of the status flags on to the stack.
+     *
+     *   Opcode: $08
+     *   Cycles: 3
+     */
+    fn php(&mut self) {}
+
+    /*
+     *   PLA - Pull Accumulator
+     *   Pulls an 8 bit value from the stack and into the accumulator. The zero and negative flags are set as appropriate.
+     *
+     *   Opcode: $68
+     *   Cycles: 4
+     */
+    fn pla(&mut self) {}
+
+    /*
+     *   PLP - Pull Processor Status
+     *   Pulls an 8 bit value from the stack and into the processor flags. The flags will take on new states as determined by the value pulled.
+     *
+     *   Opcode: $28
+     *   Cycles: 4
+     */
+    fn plp(&mut self) {}
+
+    /*
+     *   JMP - Jump
+     *   Sets the program counter to the address specified by the operand.
+     */
+
+    // Opcode: $4C
+    // Cycles: 3
+    fn jmp_absolute(&mut self, address: u16) {
+
+    }
+
+    // Opcode: $6C
+    // Cycles: 5
+    fn jmp_indirect(&mut self, address: u16) {
+    }
+
+    /*
+     *   JSR - Jump to Subroutine
+     *   The JSR instruction pushes the address (minus one) of the return point on to the stack and then sets the program counter to the target memory address.
+     *
+     *   Opcode: $20
+     *   Cycles: 6
+     */
+    fn jsr(&mut self) {}
+
+    /*
+     *   BCC - Branch if Carry Clear
+     *   If the carry flag is clear then add the relative displacement to the program counter to cause a branch to a new location.
+     *
+     *   Opcode: $90
+     *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
+     */
+    fn bcc(&mut self) {}
+
+    /*
+     *   BCS - Branch if Carry Set
+     *   If the carry flag is set then add the relative displacement to the program counter to cause a branch to a new location.
+     *
+     *   Opcode: $B0
+     *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
+     */
+    fn bcs(&mut self) {}
+
+    /*
+     *   BEQ - Branch if Equal
+     *   If the zero flag is set then add the relative displacement to the program counter to cause a branch to a new location.
+     *
+     *   Opcode: $F0
+     *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
+     */
+    fn beq(&mut self) {}
+
+    /*
+     *   BMI - Branch if Minus
+     *   If the negative flag is set then add the relative displacement to the program counter to cause a branch to a new location.
+     *
+     *   Opcode: $30
+     *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
+     */
+    fn bmi(&mut self) {}
+
+    /*
+     *   BNE - Branch if Not Equal
+     *   If the zero flag is clear then add the relative displacement to the program counter to cause a branch to a new location.
+     *
+     *   Opcode: $D0
+     *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
+     */
+    fn bne(&mut self) {}
+
+    /*
+     *   BPL - Branch if Positive
+     *   If the negative flag is clear then add the relative displacement to the program counter to cause a branch to a new location.
+     *
+     *   Opcode: $10
+     *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
+     */
+    fn bpl(&mut self) {}
+
+    /*
+     *   BVC - Branch if Overflow Clear
+     *   If the overflow flag is clear then add the relative displacement to the program counter to cause a branch to a new location.
+     *
+     *   Opcode: $50
+     *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
+     */
+    fn bvc(&mut self) {}
+
+    /*
+     *   BVS - Branch if Overflow Set
+     *   If the overflow flag is set then add the relative displacement to the program counter to cause a branch to a new location.
+     *
+     *   Opcode: $70
+     *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
+     */
+    fn bvs(&mut self) {}
 }
 
 #[cfg(test)]

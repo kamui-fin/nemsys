@@ -319,7 +319,7 @@ impl Cpu {
 
     // Opcode: $2D
     // Cycles: 4
-    fn and_absolute(&mut self, address: u8){
+    fn and_absolute(&mut self, address: u16){
         let value = self.memory.fetch_absolute(address);
 
         self.and_immediate(value);
@@ -363,6 +363,239 @@ impl Cpu {
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
         
         self.and_immediate(value); 
+    }
+
+    /*
+     *   EOR - Exclusive OR
+     *   Perform the XOR operation
+     */
+    
+    // Opcode: $49
+    // Cycles: 2
+    fn eor_immediate(&mut self, value: u8){
+        self.registers.accumulator ^= value
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        }
+    }
+
+    // Opcode: $45
+    // Cycles: 3
+    fn eor_zero_page(&mut self, addr_lower_byte: u8){
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+
+        self.eor_immediate(value);
+    }
+
+    // Opcode: $55
+    // Cycles: 4
+    fn eor_zero_page_x(&mut self, addr_lower_byte: u8){
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        
+        self.eor_immediate(value);
+    }
+
+    // Opcode: $4D
+    // Cycles: 4
+    fn eor_absolute(&mut self, address: u16){
+        let value = self.memory.fetch_absolute(address);
+
+        self.eor_immediate(value);
+    }
+
+    // Opcode: $5D
+    // Cycles: 4 (+1 if page crossed)
+    fn eor_absolute_x(&mut self, address: u16){
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+
+        self.eor_immediate(value);
+    }
+
+    // Opcode: $59
+    // Cycles: 4 (+1 if page crossed)
+    fn eor_absolute_y(&mut self, address: u16){
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+
+        self.eor_immediate(value);
+    }
+
+    // Opcode: $41
+    // Cycles: 6
+    fn eor_indirect_x(&mut self, addr_lower_byte: u8){
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+        
+        self.eor_immediate(value);
+    }
+
+    // Opcode: $51
+    // Cycles: 5 (+1 if page crossed)
+    fn eor_indirect_y(&mut self, addr_lower_byte: u8){
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
+        
+        self.eor_immediate(value); 
+    }
+
+    /*
+     *   ORA - Logical OR Operation
+     *   Perform the logical OR operation
+     */
+    
+    // Opcode: $09
+    // Cycles: 2
+    fn ora_immediate(&mut self, value: u8){
+        self.registers.accumulator |= value
+
+        if self.registers.accumulator == 0{
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+
+        if self.registers.accumulator & 0b1000_0000 != 0{
+            self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
+        }
+    }
+
+    // Opcode: $05
+    // Cycles: 3
+    fn ora_zero_page(&mut self, addr_lower_byte: u8){
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+
+        self.ora_immediate(value);
+    }
+
+    // Opcode: $15
+    // Cycles: 4
+    fn ora_zero_page_x(&mut self, addr_lower_byte: u8){
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        
+        self.ora_immediate(value);
+    }
+
+    // Opcode: $0D
+    // Cycles: 4
+    fn ora_absolute(&mut self, address: u16){
+        let value = self.memory.fetch_absolute(address);
+
+        self.ora_immediate(value);
+    }
+
+    // Opcode: $1D
+    // Cycles: 4 (+1 if page crossed)
+    fn ora_absolute_x(&mut self, address: u16){
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+
+        self.ora_immediate(value);
+    }
+
+    // Opcode: $19
+    // Cycles: 4 (+1 if page crossed)
+    fn ora_absolute_y(&mut self, address: u16){
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+
+        self.ora_immediate(value);
+    }
+
+    // Opcode: $01
+    // Cycles: 6
+    fn ora_indirect_x(&mut self, addr_lower_byte: u8){
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+        
+        self.ora_immediate(value);
+    }
+
+    // Opcode: $11
+    // Cycles: 5 (+1 if page crossed)
+    fn ora_indirect_y(&mut self, addr_lower_byte: u8){
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
+        
+        self.ora_immediate(value); 
+    }
+
+    /*
+     *   BIT - BIT Test for certain bits
+     *   Check if one or more bits are set in target memory location
+     */
+    
+    // Opcode: $24
+    // Cycles: 3
+    fn bit_zero_page(&mut self, addr_lower_byte: u8){
+        let value = self.memory.fetch_zero_page(addr_lower_byte)
+        let result = self.registers.accumulator & value;
+
+        if result == 0 {
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+        
+        if (value & 0b1000_0000) != 0 {
+            self.registers.set_neg();
+        } else {
+            self.registers.unset_neg();
+        }
+        
+        if (value & 0b0100_0000) != 0 {
+            self.registers.set_overflow();
+        } else {
+            self.registers.unset_overflow();
+        }
+    }
+
+    // Opcode: $2C
+    // Cycles: 4
+    fn bit_absolute(&mut self, address: u16){
+        let value = self.memory.fetch_absolute(address);
+        let result = self.registers.accumulator & value;
+
+        if result == 0 {
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
+        }
+        
+        if (value & 0b1000_0000) != 0 {
+            self.registers.set_neg();
+        } else {
+            self.registers.unset_neg();
+        }
+        
+        if (value & 0b0100_0000) != 0 {
+            self.registers.set_overflow();
+        } else {
+            self.registers.unset_overflow();
+        }
     }
 
     /*

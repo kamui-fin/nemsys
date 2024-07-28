@@ -32,6 +32,427 @@ impl Cpu {
     }
 
     /*
+     * ADC - Add with Carry
+     * This instruction adds the contents of a memory location to the accumulator together with the carry bit. If overflow occurs the carry bit is set, this enables multiple byte addition to be performed.
+     */
+
+    // Opcode: $69
+    // 2 cycles
+    fn adc_immediate(&mut self, value: u8) {
+        // check if both are positive or if both are negative
+        let same_sign = (value & 0b1000_0000) == (self.registers.accumulator & 0b1000_0000);
+
+        let sum: u16 = (self.registers.accumulator as u16) + value + self.registers.get_carry();
+
+        // check if two positive sum to neg or vice versa
+        if same_sign && (sum & 0b1000_0000) != (value & (0b1000_0000 as u16)) {
+            self.registers.set_overflow()
+        }
+
+        // if need to use u16 range, then carry detected
+        if sum > 0xFF {
+            self.registers.set_carry();
+            self.registers.accumulator = (sum & 0b1111_1111) as u8;
+        } else {
+            self.registers.accumulator = sum as u8;
+        }
+
+        // POTENTIAL BUG: set_zero after setting accumulator or before
+        if self.registers.accumulator == 0 {
+            self.registers.set_zero()
+        }
+
+        if self.registers.accumulator & 0b1000_0000 == 1 {
+            self.registers.set_neg()
+        }
+    }
+
+    // Opcode: $65
+    // 3 cycles
+    fn adc_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+        self.adc_immediate(value)
+    }
+
+    // Opcode: $75
+    // 4 cycles
+    fn adc_zero_page_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        self.adc_immediate(value)
+    }
+
+    // Opcode: $6D
+    // 4 cycles
+    fn adc_absolute(&mut self, address: u16) {
+        let value = self.memory.fetch_absolute(address);
+        self.adc_immediate(value)
+    }
+
+    // Opcode: $7D
+    // 4 (+1 if page crossed) cycles
+    fn adc_absolute_x(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+        self.adc_immediate(value)
+    }
+
+    // Opcode: $79
+    // 4 (+1 if page crossed) cycles
+    fn adc_absolute_y(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+        self.adc_immediate(value)
+    }
+
+    // Opcode: $61
+    // 6 cycles
+    fn adc_indirect_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+        self.adc_immediate(value)
+    }
+
+    // Opcode: $71
+    // 5 (+1 if page crossed) cycles
+    fn adc_indirect_y(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
+        self.adc_immediate(value)
+    }
+
+    /*
+     * SBC - Subtract with Carry
+     * This instruction subtracts the contents of a memory location to the accumulator together with the not of the carry bit. If overflow occurs the carry bit is clear, this enables multiple byte subtraction to be performed.
+     */
+
+    // Opcode: $E9
+    // 2 cycles
+    fn sbc_immediate(&mut self, value: u8) {
+        self.adc_immediate((value as i8 * -1i8) as u8) // twos complement
+    }
+
+    // Opcode: $E5
+    // 3 cycles
+    fn sbc_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+        self.sbc_immediate(value)
+    }
+
+    // Opcode: $F5
+    // 4 cycles
+    fn sbc_zero_page_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        self.sbc_immediate(value)
+    }
+
+    // Opcode: $ED
+    // 4 cycles
+    fn sbc_absolute(&mut self, address: u16) {
+        let value = self.memory.fetch_absolute(address);
+        self.sbc_immediate(value)
+    }
+
+    // Opcode: $FD
+    // 4 (+1 if page crossed) cycles
+    fn sbc_absolute_x(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+        self.sbc_immediate(value)
+    }
+
+    // Opcode: $F9
+    // 4 (+1 if page crossed) cycles
+    fn sbc_absolute_y(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+        self.sbc_immediate(value)
+    }
+
+    // Opcode: $E1
+    // 6 cycles
+    fn sbc_indirect_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+        self.sbc_immediate(value)
+    }
+
+    // Opcode: $F1
+    // 5 (+1 if page crossed) cycles
+    fn sbc_indirect_y(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
+        self.sbc_immediate(value)
+    }
+
+    /*
+     * CMP - Compare
+     * This instruction compares the contents of the accumulator with another memory held value and sets the zero and carry flags as appropriate.
+     */
+
+    // Opcode: $E9
+    // 2 cycles
+    fn cmp_immediate(&mut self, value: u8) {
+        if (self.registers.accumulator == value) {
+            self.registers.set_zero()
+        }
+        if (self.registers.accumulator >= value) {
+            self.registers.set_carry()
+        }
+
+        let result = self.registers.accumulator - value;
+
+        // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
+        if (result & 0b1000_0000 == 1) {
+            self.registers.set_neg()
+        }
+    }
+
+    // Opcode: $E5
+    // 3 cycles
+    fn cmp_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+        self.cmp_immediate(value)
+    }
+
+    // Opcode: $F5
+    // 4 cycles
+    fn cmp_zero_page_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        self.cmp_immediate(value)
+    }
+
+    // Opcode: $ED
+    // 4 cycles
+    fn cmp_absolute(&mut self, address: u16) {
+        let value = self.memory.fetch_absolute(address);
+        self.cmp_immediate(value)
+    }
+
+    // Opcode: $FD
+    // 4 (+1 if page crossed) cycles
+    fn cmp_absolute_x(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+        self.cmp_immediate(value)
+    }
+
+    // Opcode: $F9
+    // 4 (+1 if page crossed) cycles
+    fn cmp_absolute_y(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+        self.cmp_immediate(value)
+    }
+
+    // Opcode: $E1
+    // 6 cycles
+    fn cmp_indirect_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+        self.cmp_immediate(value)
+    }
+
+    // Opcode: $F1
+    // 5 (+1 if page crossed) cycles
+    fn cmp_indirect_y(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
+        self.cmp_immediate(value)
+    }
+
+    /*
+     * CPX - Compare X Register
+     * This instruction compares the contents of the X register with another memory held value and sets the zero and carry flags as appropriate.
+     */
+
+    // Opcode: $E0
+    // 2 cycles
+    fn cpx_immediate(&mut self, value: u8) {
+        if (self.registers.index_x == value) {
+            self.registers.set_zero()
+        }
+        if (self.registers.index_x >= value) {
+            self.registers.set_carry()
+        }
+
+        let result = self.registers.index_x - value;
+
+        // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
+        if (result & 0b1000_0000 == 1) {
+            self.registers.set_neg()
+        }
+    }
+
+    // Opcode: $E4
+    // 3 cycles
+    fn cpx_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+        self.cpx_immediate(value)
+    }
+
+    // Opcode: $EC
+    // 4 cycles
+    fn cpx_absolute(&mut self, address: u16) {
+        let value = self.memory.fetch_absolute(address);
+        self.cpx_immediate(value)
+    }
+
+    /*
+     * CPY - Compare Y Register
+     * This instruction compares the contents of the Y register with another memory held value and sets the zero and carry flags as appropriate.
+     */
+
+    // Opcode: $C0
+    // 2 cycles
+    fn cpy_immediate(&mut self, value: u8) {
+        if (self.registers.index_y == value) {
+            self.registers.set_zero()
+        }
+        if (self.registers.index_y >= value) {
+            self.registers.set_carry()
+        }
+
+        let result = self.registers.index_y - value;
+
+        // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
+        if (result & 0b1000_0000 == 1) {
+            self.registers.set_neg()
+        }
+    }
+
+    // Opcode: $C4
+    // 3 cycles
+    fn cpy_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+        self.cpy_immediate(value)
+    }
+
+    // Opcode: $CC
+    // 4 cycles
+    fn cpy_absolute(&mut self, address: u16) {
+        let value = self.memory.fetch_absolute(address);
+        self.cpy_immediate(value)
+    }
+
+    /*
+     * ASL - Arithmetic Shift Left
+     * This operation shifts all the bits of the accumulator or memory contents one bit left. Bit 0 is set to 0 and bit 7 is placed in the carry flag. The effect of this operation is to multiply the memory contents by 2 (ignoring 2's complement considerations), setting the carry if the result will not fit in 8 bits.
+     */
+
+    // Opcode: $0A
+    // 2 cycles
+    fn asl_immediate(&mut self, value: u8) {}
+
+    // Opcode: $06
+    // 5 cycles
+    fn asl_zero_page(&mut self, value: u8) {}
+
+    // Opcode: $16
+    // 6 cycles
+    fn asl_zero_page_x(&mut self, value: u8) {}
+
+    // Opcode: $0E
+    // 6 cycles
+    fn asl_absolute(&mut self, value: u8) {}
+
+    // Opcode: $1E
+    // 7 cycles
+    fn asl_absolute_x(&mut self, value: u8) {}
+
+    /*
+     * LSR - Logical Shift Right
+     * Each of the bits in A or M is shift one place to the right. The bit that was in bit 0 is shifted into the carry flag. Bit 7 is set to zero.
+     */
+
+    // Opcode: $4A
+    // 2 cycles
+    fn lsr_immediate(&mut self, value: u8) {}
+
+    // Opcode: $46
+    // 5 cycles
+    fn lsr_zero_page(&mut self, value: u8) {}
+
+    // Opcode: $56
+    // 6 cycles
+    fn lsr_zero_page_x(&mut self, value: u8) {}
+
+    // Opcode: $4E
+    // 6 cycles
+    fn lsr_absolute(&mut self, value: u8) {}
+
+    // Opcode: $5E
+    // 7 cycles
+    fn lsr_absolute_x(&mut self, value: u8) {}
+
+    /*
+     * ROL - Rotate Left
+     * Move each of the bits in either A or M one place to the left. Bit 0 is filled with the current value of the carry flag whilst the old bit 7 becomes the new carry flag value.
+     */
+
+    // Opcode: $2A
+    // 2 cycles
+    fn rol_immediate(&mut self, value: u8) {}
+
+    // Opcode: $26
+    // 5 cycles
+    fn rol_zero_page(&mut self, value: u8) {}
+
+    // Opcode: $36
+    // 6 cycles
+    fn rol_zero_page_x(&mut self, value: u8) {}
+
+    // Opcode: $2E
+    // 6 cycles
+    fn rol_absolute(&mut self, value: u8) {}
+
+    // Opcode: $3E
+    // 7 cycles
+    fn rol_absolute_x(&mut self, value: u8) {}
+
+    /*
+     * ROR - Rotate Right
+     * Move each of the bits in either A or M one place to the right. Bit 7 is filled with the current value of the carry flag whilst the old bit 0 becomes the new carry flag value.
+     */
+
+    // Opcode: $6A
+    // 2 cycles
+    fn ror_immediate(&mut self, value: u8) {}
+
+    // Opcode: $66
+    // 5 cycles
+    fn ror_zero_page(&mut self, value: u8) {}
+
+    // Opcode: $76
+    // 6 cycles
+    fn ror_zero_page_x(&mut self, value: u8) {}
+
+    // Opcode: $6E
+    // 6 cycles
+    fn ror_absolute(&mut self, value: u8) {}
+
+    // Opcode: $7E
+    // 7 cycles
+    fn ror_absolute_x(&mut self, value: u8) {}
+
+    /*
      * LDA - Load accumulator
      * Loads a byte of memory into the accumulator setting the zero and negative flags as appropriate.
      */

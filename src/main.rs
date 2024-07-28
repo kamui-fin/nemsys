@@ -302,19 +302,9 @@ impl Cpu {
     // Opcode: $25
     // Cycles: 3
     fn and_zero_page(&mut self, addr_lower_byte: u8){
-        self.registers.accumulator &= self.memory.fetch_zero_page(addr_lower_byte);
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
 
-        if self.registers.accumulator == 0{
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0{
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        }
+        self.and_immediate(value);
     }
 
     // Opcode: $35
@@ -324,19 +314,7 @@ impl Cpu {
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         
-        self.registers.accumulator &= value
-
-        if self.registers.accumulator == 0{
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0{
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        }
+        self.and_immediate(value);
     }
 
     // Opcode: $2D
@@ -344,19 +322,7 @@ impl Cpu {
     fn and_absolute(&mut self, address: u8){
         let value = self.memory.fetch_absolute(address);
 
-        self.accumulator &= value
-
-        if self.registers.accumulator == 0{
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0{
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        }
+        self.and_immediate(value);
     }
 
     // Opcode: $3D
@@ -366,19 +332,7 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
 
-        self.accumulator &= value
-
-        if self.registers.accumulator == 0{
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0{
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        }
+        self.and_immediate(value);
     }
 
     // Opcode: $39
@@ -388,19 +342,7 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
 
-        self.accumulator &= value
-
-        if self.registers.accumulator == 0{
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0{
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        }
+        self.and_immediate(value);
     }
 
     // Opcode: $21
@@ -410,19 +352,7 @@ impl Cpu {
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
         
-        self.accumulator &= value
-
-        if self.registers.accumulator == 0{
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0{
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        }
+        self.and_immediate(value);
     }
 
     // Opcode: $31
@@ -432,19 +362,7 @@ impl Cpu {
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
         
-        self.accumulator &= value
-
-        if self.registers.accumulator == 0{
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0{
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        } 
+        self.and_immediate(value); 
     }
 
     /*

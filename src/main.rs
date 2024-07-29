@@ -1456,8 +1456,8 @@ impl Cpu {
 
     // Opcode: $96
     // Cycles: 4
-    fn stx_zero_page_y(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_y, self.registers.index_y);
+    fn stx_zero_page_x(&mut self, addr_lower_byte: u8) {
+        self.memory.store_zero_page_y(addr_lower_byte, self.registers.index_y, self.registers.index_x);
     }
 
     // Opcode: $8E
@@ -1480,7 +1480,7 @@ impl Cpu {
     // Opcode: $94
     // Cycles: 4
     fn sty_zero_page_x(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_y, self.registers.index_y);
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, self.registers.index_y);
     }
 
     // Opcode: $9C
@@ -1530,6 +1530,104 @@ impl Cpu {
         update_zero_negative_flags(new_val);
     }
 
+    /*
+     *   INX - Increment X Register
+     *   Increment the value at the X Register
+     *   
+     *   Opcode: $E8
+     *   Cycles: 2
+     */
+
+    fn inx_implied(&mut self){
+        self.registers.index_x += 1
+        update_zero_negative_flags(self.registers.index_x);
+    }
+
+    /*
+     *   INY - Increment Y Register
+     *   Increment the value at the Y Register
+     *   
+     *   Opcode: $C8
+     *   Cycles: 2
+     */
+
+    fn inx_implied(&mut self){
+        self.registers.index_y += 1
+        update_zero_negative_flags(self.registers.index_y);
+    }
+
+
+
+
+
+    -----
+
+    /*
+     *   DEC - Decrement Memory
+     *   Decrement the value at a specified memory location
+     */
+    
+    // Opcode: $C6
+    // Cycles: 5
+    fn dec_zero_page(&mut self, addr_lower_byte: u8){
+        let new_val = self.memory.fetch_zero_page(addr_lower_byte)-1;
+
+        self.memory.store_zero_page(address, new_val);
+        update_zero_negative_flags(new_val);
+    }
+
+    // Opcode: $D6
+    // Cycles: 6
+    fn dnc_zero_page_x(&mut self, addr_lower_byte: u8){
+        let new_val = self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x)-1;
+
+        self.memory.store_zero_page_x(address, self.registers.index_x, new_val);
+        update_zero_negative_flags(new_val);
+    }
+
+    // Opcode: $CE
+    // Cycles: 6
+    fn dec_absolute(&mut self, address: u16) {
+        let new_val = self.memory.fetch_absolute(address)-1;
+
+        self.memory.store_absolute(address, new_val);
+        update_zero_negative_flags(new_val);
+    }
+
+    // Opcode: $DE
+    // Cycles: 7
+    fn inc_absolute_x(&mut self, address: u16){
+        let new_val = self.memory.fetch_absolute_x(address)-1;
+
+        self.memory.store_absolute_x(address, self.registers.index_x, new_val);
+        update_zero_negative_flags(new_val);
+    }
+
+    /*
+     *   DEX - Decrement X Register
+     *   Increment the value at the X Register
+     *   
+     *   Opcode: $E8
+     *   Cycles: 2
+     */
+
+    fn dex_implied(&mut self){
+        self.registers.index_x -= 1
+        update_zero_negative_flags(self.registers.index_x);
+    }
+
+    /*
+     *   DEY - Decrement Y Register
+     *   Decrement the value at the Y Register
+     *   
+     *   Opcode: $C8
+     *   Cycles: 2
+     */
+
+    fn dex_implied(&mut self){
+        self.registers.index_y -= 1
+        update_zero_negative_flags(self.registers.index_y);
+    }
 }
 
 #[cfg(test)]

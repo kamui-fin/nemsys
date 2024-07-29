@@ -357,75 +357,199 @@ impl Cpu {
      * This operation shifts all the bits of the accumulator or memory contents one bit left. Bit 0 is set to 0 and bit 7 is placed in the carry flag. The effect of this operation is to multiply the memory contents by 2 (ignoring 2's complement considerations), setting the carry if the result will not fit in 8 bits.
      */
 
+    // Helper method to extract general ASL functionality
+    fn asl_immediate(&mut self, value: u8) -> u8 {
+        // Bit 7 is set in carry flag
+        let first_bit = value & 0b1000_0000;
+        if first_bit == 1 {
+            self.registers.set_carry()
+        }
+
+        let new_value = value << 1;
+
+        if (new_value == 0) {
+            self.registers.set_zero();
+        }
+
+        if (new_value & 0b1000_000 == 1) {
+            self.registers.set_neg()
+        }
+
+        new_value
+    }
+
     // Opcode: $0A
     // 2 cycles
-    fn asl_immediate(&mut self, value: u8) {}
+    fn asl_accumulator(&mut self) {
+        let new_accum = self.asl_immediate(self.registers.accumulator);
+        self.registers.accumulator = new_accum;
+    }
 
     // Opcode: $06
     // 5 cycles
-    fn asl_zero_page(&mut self, value: u8) {}
+    fn asl_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+        let value = self.asl_immediate(value);
+        // store value in same memory address
+    }
 
     // Opcode: $16
     // 6 cycles
-    fn asl_zero_page_x(&mut self, value: u8) {}
+    fn asl_zero_page_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        let value = self.asl_immediate(value);
+    }
 
     // Opcode: $0E
     // 6 cycles
-    fn asl_absolute(&mut self, value: u8) {}
+    fn asl_absolute(&mut self, address: u16) {
+        let value = self.memory.fetch_absolute(address);
+        let value = self.asl_immediate(value);
+    }
 
     // Opcode: $1E
     // 7 cycles
-    fn asl_absolute_x(&mut self, value: u8) {}
+    fn asl_absolute_x(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+        let value = self.asl_immediate(value);
+    }
 
     /*
      * LSR - Logical Shift Right
      * Each of the bits in A or M is shift one place to the right. The bit that was in bit 0 is shifted into the carry flag. Bit 7 is set to zero.
      */
 
+    // Helper method to extract general ASL functionality
+    fn lsr_immediate(&mut self, value: u8) -> u8 {
+        // Bit 7 is set in carry flag
+        let first_bit = value & 0b0000_0001;
+        if first_bit == 1 {
+            self.registers.set_carry()
+        }
+
+        let new_value = value >> 1;
+
+        if (new_value == 0) {
+            self.registers.set_zero();
+        }
+
+        // Not really necessary as bit 7 will be 0
+        /* if (new_value & 0b1000_000 == 1) {
+            self.registers.set_neg()
+        } */
+
+        new_value
+    }
+
     // Opcode: $4A
     // 2 cycles
-    fn lsr_immediate(&mut self, value: u8) {}
+    fn lsr_accumulator(&mut self) {
+        let new_accum = self.lsr_immediate(self.registers.accumulator);
+        self.registers.accumulator = new_accum;
+    }
 
     // Opcode: $46
     // 5 cycles
-    fn lsr_zero_page(&mut self, value: u8) {}
+    fn lsr_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+        let value = self.lsr_immediate(value);
+        // store value in same memory address
+    }
 
     // Opcode: $56
     // 6 cycles
-    fn lsr_zero_page_x(&mut self, value: u8) {}
+    fn lsr_zero_page_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        let value = self.lsr_immediate(value);
+    }
 
     // Opcode: $4E
     // 6 cycles
-    fn lsr_absolute(&mut self, value: u8) {}
+    fn lsr_absolute(&mut self, address: u16) {
+        let value = self.memory.fetch_absolute(address);
+        let value = self.lsr_immediate(value);
+    }
 
     // Opcode: $5E
     // 7 cycles
-    fn lsr_absolute_x(&mut self, value: u8) {}
+    fn lsr_absolute_x(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+        let value = self.lsr_immediate(value);
+    }
 
     /*
      * ROL - Rotate Left
      * Move each of the bits in either A or M one place to the left. Bit 0 is filled with the current value of the carry flag whilst the old bit 7 becomes the new carry flag value.
      */
 
+    fn rol_immediate(&mut self, value: u8) -> u8 {
+        // Bit 7 is set in carry flag
+        let first_bit = value & 0b1000_0000;
+
+        let new_value = value << 1;
+        let new_value = new_value | self.registers.get_carry();
+
+        if first_bit == 1 {
+            self.registers.set_carry()
+        }
+
+        if (new_value == 0) {
+            self.registers.set_zero();
+        }
+
+        if (new_value & 0b1000_000 == 1) {
+            self.registers.set_neg()
+        }
+
+        new_value
+    }
+
     // Opcode: $2A
     // 2 cycles
-    fn rol_immediate(&mut self, value: u8) {}
+    fn rol_accumulator(&mut self) {
+        self.registers.accumulator = self.rol_immediate(self.registers.accumulator);
+    }
 
     // Opcode: $26
     // 5 cycles
-    fn rol_zero_page(&mut self, value: u8) {}
+    fn rol_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+        let value = self.rol_immediate(value);
+        // store value in same memory address
+    }
 
     // Opcode: $36
     // 6 cycles
-    fn rol_zero_page_x(&mut self, value: u8) {}
+    fn rol_zero_page_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        let value = self.rol_immediate(value);
+    }
 
     // Opcode: $2E
     // 6 cycles
-    fn rol_absolute(&mut self, value: u8) {}
+    fn rol_absolute(&mut self, address: u16) {
+        let value = self.memory.fetch_absolute(address);
+        let value = self.rol_immediate(value);
+    }
 
     // Opcode: $3E
     // 7 cycles
-    fn rol_absolute_x(&mut self, value: u8) {}
+    fn rol_absolute_x(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+        let value = self.rol_immediate(value);
+    }
 
     /*
      * ROR - Rotate Right
@@ -434,23 +558,66 @@ impl Cpu {
 
     // Opcode: $6A
     // 2 cycles
-    fn ror_immediate(&mut self, value: u8) {}
+    fn ror_immediate(&mut self, value: u8) -> u8 {
+        // Bit 7 is set in carry flag
+        let last_bit = value & 0b0000_0001;
+
+        let new_value = value >> 1;
+        let new_value = new_value | (self.registers.get_carry() << 7);
+
+        if last_bit == 1 {
+            self.registers.set_carry()
+        }
+
+        if (new_value == 0) {
+            self.registers.set_zero();
+        }
+
+        if (new_value & 0b1000_000 == 1) {
+            self.registers.set_neg()
+        }
+
+        new_value
+    }
+
+    // Opcode: $6A
+    // 2 cycles
+    fn ror_accumulator(&mut self) {
+        self.registers.accumulator = self.ror_immediate(self.registers.accumulator);
+    }
 
     // Opcode: $66
     // 5 cycles
-    fn ror_zero_page(&mut self, value: u8) {}
+    fn ror_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
+        let value = self.ror_immediate(value);
+        // store value in same memory address
+    }
 
     // Opcode: $76
     // 6 cycles
-    fn ror_zero_page_x(&mut self, value: u8) {}
+    fn ror_zero_page_x(&mut self, addr_lower_byte: u8) {
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
+        let value = self.ror_immediate(value);
+    }
 
     // Opcode: $6E
     // 6 cycles
-    fn ror_absolute(&mut self, value: u8) {}
+    fn ror_absolute(&mut self, address: u16) {
+        let value = self.memory.fetch_absolute(address);
+        let value = self.ror_immediate(value);
+    }
 
     // Opcode: $7E
     // 7 cycles
-    fn ror_absolute_x(&mut self, value: u8) {}
+    fn ror_absolute_x(&mut self, address: u16) {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x);
+        let value = self.ror_immediate(value);
+    }
 
     /*
      * LDA - Load accumulator
@@ -704,25 +871,25 @@ impl Cpu {
 
     // Opcode: $29
     // Cycles: 2
-    fn and_immediate(&mut self, value: u8){
+    fn and_immediate(&mut self, value: u8) {
         self.registers.accumulator &= value;
 
-        if self.registers.accumulator == 0{
+        if self.registers.accumulator == 0 {
             self.registers.set_zero();
         } else {
             self.registers.unset_zero();
         }
 
-        if self.registers.accumulator & 0b1000_0000 != 0{
+        if self.registers.accumulator & 0b1000_0000 != 0 {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
         }
-    } 
+    }
 
     // Opcode: $25
     // Cycles: 3
-    fn and_zero_page(&mut self, addr_lower_byte: u8){
+    fn and_zero_page(&mut self, addr_lower_byte: u8) {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
 
         self.and_immediate(value);
@@ -730,17 +897,17 @@ impl Cpu {
 
     // Opcode: $35
     // Cycles: 4
-    fn and_zero_page_x(&mut self, addr_lower_byte: u8){
+    fn and_zero_page_x(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
-        
+
         self.and_immediate(value);
     }
 
     // Opcode: $2D
     // Cycles: 4
-    fn and_absolute(&mut self, address: u16){
+    fn and_absolute(&mut self, address: u16) {
         let value = self.memory.fetch_absolute(address);
 
         self.and_immediate(value);
@@ -748,7 +915,7 @@ impl Cpu {
 
     // Opcode: $3D
     // Cycles: 4 (+1 if page crossed)
-    fn and_absolute_x(&mut self, address: u16){
+    fn and_absolute_x(&mut self, address: u16) {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
@@ -758,7 +925,7 @@ impl Cpu {
 
     // Opcode: $39
     // Cycles: 4 (+1 if page crossed)
-    fn and_absolute_y(&mut self, address: u16){
+    fn and_absolute_y(&mut self, address: u16) {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
@@ -768,41 +935,41 @@ impl Cpu {
 
     // Opcode: $21
     // Cycles: 6
-    fn and_indirect_x(&mut self, addr_lower_byte: u8){
+    fn and_indirect_x(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
-        
+
         self.and_immediate(value);
     }
 
     // Opcode: $31
     // Cycles: 5 (+1 if page crossed)
-    fn and_indirect_y(&mut self, addr_lower_byte: u8){
+    fn and_indirect_y(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
-        
-        self.and_immediate(value); 
+
+        self.and_immediate(value);
     }
 
     /*
      *   EOR - Exclusive OR
      *   Perform the XOR operation
      */
-    
+
     // Opcode: $49
     // Cycles: 2
-    fn eor_immediate(&mut self, value: u8){
-        self.registers.accumulator ^= value
+    fn eor_immediate(&mut self, value: u8) {
+        self.registers.accumulator ^= value;
 
-        if self.registers.accumulator == 0{
+        if self.registers.accumulator == 0 {
             self.registers.set_zero();
         } else {
             self.registers.unset_zero();
         }
 
-        if self.registers.accumulator & 0b1000_0000 != 0{
+        if self.registers.accumulator & 0b1000_0000 != 0 {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -811,7 +978,7 @@ impl Cpu {
 
     // Opcode: $45
     // Cycles: 3
-    fn eor_zero_page(&mut self, addr_lower_byte: u8){
+    fn eor_zero_page(&mut self, addr_lower_byte: u8) {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
 
         self.eor_immediate(value);
@@ -819,17 +986,17 @@ impl Cpu {
 
     // Opcode: $55
     // Cycles: 4
-    fn eor_zero_page_x(&mut self, addr_lower_byte: u8){
+    fn eor_zero_page_x(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
-        
+
         self.eor_immediate(value);
     }
 
     // Opcode: $4D
     // Cycles: 4
-    fn eor_absolute(&mut self, address: u16){
+    fn eor_absolute(&mut self, address: u16) {
         let value = self.memory.fetch_absolute(address);
 
         self.eor_immediate(value);
@@ -837,7 +1004,7 @@ impl Cpu {
 
     // Opcode: $5D
     // Cycles: 4 (+1 if page crossed)
-    fn eor_absolute_x(&mut self, address: u16){
+    fn eor_absolute_x(&mut self, address: u16) {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
@@ -847,7 +1014,7 @@ impl Cpu {
 
     // Opcode: $59
     // Cycles: 4 (+1 if page crossed)
-    fn eor_absolute_y(&mut self, address: u16){
+    fn eor_absolute_y(&mut self, address: u16) {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
@@ -857,41 +1024,41 @@ impl Cpu {
 
     // Opcode: $41
     // Cycles: 6
-    fn eor_indirect_x(&mut self, addr_lower_byte: u8){
+    fn eor_indirect_x(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
-        
+
         self.eor_immediate(value);
     }
 
     // Opcode: $51
     // Cycles: 5 (+1 if page crossed)
-    fn eor_indirect_y(&mut self, addr_lower_byte: u8){
+    fn eor_indirect_y(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
-        
-        self.eor_immediate(value); 
+
+        self.eor_immediate(value);
     }
 
     /*
      *   ORA - Logical OR Operation
      *   Perform the logical OR operation
      */
-    
+
     // Opcode: $09
     // Cycles: 2
-    fn ora_immediate(&mut self, value: u8){
-        self.registers.accumulator |= value
+    fn ora_immediate(&mut self, value: u8) {
+        self.registers.accumulator |= value;
 
-        if self.registers.accumulator == 0{
+        if self.registers.accumulator == 0 {
             self.registers.set_zero();
         } else {
             self.registers.unset_zero();
         }
 
-        if self.registers.accumulator & 0b1000_0000 != 0{
+        if self.registers.accumulator & 0b1000_0000 != 0 {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -900,7 +1067,7 @@ impl Cpu {
 
     // Opcode: $05
     // Cycles: 3
-    fn ora_zero_page(&mut self, addr_lower_byte: u8){
+    fn ora_zero_page(&mut self, addr_lower_byte: u8) {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
 
         self.ora_immediate(value);
@@ -908,17 +1075,17 @@ impl Cpu {
 
     // Opcode: $15
     // Cycles: 4
-    fn ora_zero_page_x(&mut self, addr_lower_byte: u8){
+    fn ora_zero_page_x(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
-        
+
         self.ora_immediate(value);
     }
 
     // Opcode: $0D
     // Cycles: 4
-    fn ora_absolute(&mut self, address: u16){
+    fn ora_absolute(&mut self, address: u16) {
         let value = self.memory.fetch_absolute(address);
 
         self.ora_immediate(value);
@@ -926,7 +1093,7 @@ impl Cpu {
 
     // Opcode: $1D
     // Cycles: 4 (+1 if page crossed)
-    fn ora_absolute_x(&mut self, address: u16){
+    fn ora_absolute_x(&mut self, address: u16) {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
@@ -936,7 +1103,7 @@ impl Cpu {
 
     // Opcode: $19
     // Cycles: 4 (+1 if page crossed)
-    fn ora_absolute_y(&mut self, address: u16){
+    fn ora_absolute_y(&mut self, address: u16) {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
@@ -946,33 +1113,33 @@ impl Cpu {
 
     // Opcode: $01
     // Cycles: 6
-    fn ora_indirect_x(&mut self, addr_lower_byte: u8){
+    fn ora_indirect_x(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
-        
+
         self.ora_immediate(value);
     }
 
     // Opcode: $11
     // Cycles: 5 (+1 if page crossed)
-    fn ora_indirect_y(&mut self, addr_lower_byte: u8){
+    fn ora_indirect_y(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
-        
-        self.ora_immediate(value); 
+
+        self.ora_immediate(value);
     }
 
     /*
      *   BIT - BIT Test for certain bits
      *   Check if one or more bits are set in target memory location
      */
-    
+
     // Opcode: $24
     // Cycles: 3
-    fn bit_zero_page(&mut self, addr_lower_byte: u8){
-        let value = self.memory.fetch_zero_page(addr_lower_byte)
+    fn bit_zero_page(&mut self, addr_lower_byte: u8) {
+        let value = self.memory.fetch_zero_page(addr_lower_byte);
         let result = self.registers.accumulator & value;
 
         if result == 0 {
@@ -980,13 +1147,13 @@ impl Cpu {
         } else {
             self.registers.unset_zero();
         }
-        
+
         if (value & 0b1000_0000) != 0 {
             self.registers.set_neg();
         } else {
             self.registers.unset_neg();
         }
-        
+
         if (value & 0b0100_0000) != 0 {
             self.registers.set_overflow();
         } else {
@@ -996,7 +1163,7 @@ impl Cpu {
 
     // Opcode: $2C
     // Cycles: 4
-    fn bit_absolute(&mut self, address: u16){
+    fn bit_absolute(&mut self, address: u16) {
         let value = self.memory.fetch_absolute(address);
         let result = self.registers.accumulator & value;
 
@@ -1005,13 +1172,13 @@ impl Cpu {
         } else {
             self.registers.unset_zero();
         }
-        
+
         if (value & 0b1000_0000) != 0 {
             self.registers.set_neg();
         } else {
             self.registers.unset_neg();
         }
-        
+
         if (value & 0b0100_0000) != 0 {
             self.registers.set_overflow();
         } else {
@@ -1028,6 +1195,75 @@ impl Cpu {
      */
     fn clc(&mut self) {
         self.registers.unset_carry()
+    }
+
+    /*
+     *   UNUSED FOR NES!
+     *   CLD - Clear Decimal Mode
+     *   Sets the decimal mode flag to zero.
+     *
+     *   Opcode: $D8
+     *   Cycles: 2
+     */
+    /* fn cld(&mut self) {
+        self.registers.unset_decimal_mode()
+    } */
+
+    /*
+     *   CLI - Clear Interrupt Disable
+     *   Clears the interrupt disable flag allowing normal interrupt requests to be serviced.
+     *
+     *   Opcode: $58
+     *   Cycles: 2
+     */
+    fn cli(&mut self) {
+        self.registers.unset_interrupt_disable()
+    }
+
+    /*
+     *   CLV - Clear Overflow Flag
+     *   Clears the overflow flag.
+     *
+     *   Opcode: $B8
+     *   Cycles: 2
+     */
+    fn clv(&mut self) {
+        self.registers.unset_overflow()
+    }
+
+    /*
+     *   SEC - Set Carry Flag
+     *   Set the carry flag to one.
+     *
+     *   Opcode: $38
+     *   Cycles: 2
+     */
+    fn sec(&mut self) {
+        self.registers.set_carry()
+    }
+
+    /*
+     *    UNUSED FOR NES!
+     *
+     *   SED - Set Decimal Flag
+     *   Set the decimal mode flag to one.
+     *
+     *   Opcode: $F8
+     *   Cycles: 2
+     */
+    /* fn sed(&mut self) {
+        self.registers.set_decimal_mode()
+    } */
+
+    /*
+     *   SEI - Set Interrupt Disable
+     *   Set the interrupt disable flag to one.
+     *
+     *   Opcode: $78
+     *   Cycles: 2
+     */
+    fn sei(&mut self) {
+        self.registers.set_interrupt_disable()
     }
 
     /*

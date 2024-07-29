@@ -21,12 +21,12 @@ impl Cpu {
         if value == 0 {
             self.registers.set_zero();
         } else {
-            self.registers.clear_zero();
+            self.registers.unset_zero();
         }
         if value & 0b1000_0000 != 0 {
             self.registers.set_neg();
         } else {
-            self.registers.clear_neg();
+            self.registers.unset_neg();
         }
     }
 
@@ -71,14 +71,7 @@ impl Cpu {
             self.registers.accumulator = sum as u8;
         }
 
-        // POTENTIAL BUG: set_zero after setting accumulator or before
-        if self.registers.accumulator == 0 {
-            self.registers.set_zero()
-        }
-
-        if self.registers.accumulator & 0b1000_0000 == 1 {
-            self.registers.set_neg()
-        }
+        self.update_zero_negative_flags(value)
     }
 
     // Opcode: $65
@@ -219,17 +212,23 @@ impl Cpu {
     // 2 cycles
     fn cmp_immediate(&mut self, value: u8) {
         if (self.registers.accumulator == value) {
-            self.registers.set_zero()
+            self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
         }
         if (self.registers.accumulator >= value) {
-            self.registers.set_carry()
+            self.registers.set_carry();
+        } else {
+            self.registers.unset_carry();
         }
 
         let result = self.registers.accumulator - value;
 
         // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
         if (result & 0b1000_0000 == 1) {
-            self.registers.set_neg()
+            self.registers.set_neg();
+        } else {
+            self.registers.unset_neg();
         }
     }
 
@@ -302,9 +301,13 @@ impl Cpu {
     fn cpx_immediate(&mut self, value: u8) {
         if (self.registers.index_x == value) {
             self.registers.set_zero()
+        } else {
+            self.registers.unset_zero()
         }
         if (self.registers.index_x >= value) {
             self.registers.set_carry()
+        } else {
+            self.registers.unset_carry()
         }
 
         let result = self.registers.index_x - value;
@@ -312,6 +315,8 @@ impl Cpu {
         // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
         if (result & 0b1000_0000 == 1) {
             self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
         }
     }
 
@@ -339,16 +344,21 @@ impl Cpu {
     fn cpy_immediate(&mut self, value: u8) {
         if (self.registers.index_y == value) {
             self.registers.set_zero()
+        } else {
+            self.registers.unset_zero()
         }
         if (self.registers.index_y >= value) {
             self.registers.set_carry()
+        } else {
+            self.registers.unset_carry()
         }
 
         let result = self.registers.index_y - value;
 
-        // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
         if (result & 0b1000_0000 == 1) {
             self.registers.set_neg()
+        } else {
+            self.registers.unset_neg()
         }
     }
 
@@ -377,6 +387,8 @@ impl Cpu {
         let first_bit = value & 0b1000_0000;
         if first_bit == 1 {
             self.registers.set_carry()
+        } else {
+            self.registers.unset_carry()
         }
 
         let new_value = value << 1;
@@ -449,6 +461,7 @@ impl Cpu {
         /* if (new_value & 0b1000_000 == 1) {
             self.registers.set_neg()
         } */
+        self.registers.unset_neg();
 
         new_value
     }
@@ -507,6 +520,8 @@ impl Cpu {
 
         if first_bit == 1 {
             self.registers.set_carry()
+        } else {
+            self.registers.unset_carry()
         }
 
         self.update_zero_negative_flags(new_value);
@@ -568,6 +583,8 @@ impl Cpu {
 
         if last_bit == 1 {
             self.registers.set_carry()
+        } else {
+            self.registers.unset_carry()
         }
 
         self.update_zero_negative_flags(new_value);
@@ -1552,15 +1569,9 @@ impl Cpu {
      */
 
     fn inx_implied(&mut self){
-        self.registers.index_y += 1
+        self.registers.index_y += 1;
         update_zero_negative_flags(self.registers.index_y);
     }
-
-
-
-
-
-    -----
 
     /*
      *   DEC - Decrement Memory
@@ -1570,8 +1581,7 @@ impl Cpu {
     // Opcode: $C6
     // Cycles: 5
     fn dec_zero_page(&mut self, addr_lower_byte: u8){
-        let new_val = self.memory.fetch_zero_page(addr_lower_byte)-1;
-
+        let new_val = self.memory.fetch_zero_page(addr_lower_byte) - 1;
         self.memory.store_zero_page(address, new_val);
         update_zero_negative_flags(new_val);
     }

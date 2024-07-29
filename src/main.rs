@@ -16,6 +16,20 @@ impl Cpu {
         }
     }
 
+    // Helper method
+    fn update_zero_negative_flags(&mut self, value: u8) {
+        if value == 0 {
+            self.registers.set_zero();
+        } else {
+            self.registers.clear_zero();
+        }
+        if value & 0b1000_0000 != 0 {
+            self.registers.set_neg();
+        } else {
+            self.registers.clear_neg();
+        }
+    }
+
     /*
      * Stack abstraction methods
      */
@@ -367,13 +381,7 @@ impl Cpu {
 
         let new_value = value << 1;
 
-        if (new_value == 0) {
-            self.registers.set_zero();
-        }
-
-        if (new_value & 0b1000_000 == 1) {
-            self.registers.set_neg()
-        }
+        self.update_zero_negative_flags(new_value);
 
         new_value
     }
@@ -501,14 +509,7 @@ impl Cpu {
             self.registers.set_carry()
         }
 
-        if (new_value == 0) {
-            self.registers.set_zero();
-        }
-
-        if (new_value & 0b1000_000 == 1) {
-            self.registers.set_neg()
-        }
-
+        self.update_zero_negative_flags(new_value);
         new_value
     }
 
@@ -569,13 +570,7 @@ impl Cpu {
             self.registers.set_carry()
         }
 
-        if (new_value == 0) {
-            self.registers.set_zero();
-        }
-
-        if (new_value & 0b1000_000 == 1) {
-            self.registers.set_neg()
-        }
+        self.update_zero_negative_flags(new_value);
 
         new_value
     }
@@ -629,12 +624,7 @@ impl Cpu {
     fn lda_immediate(&mut self, value: u8) {
         self.registers.accumulator = value;
         // TODO: confirm if AFTER
-        if (self.registers.accumulator == 0) {
-            self.registers.set_zero();
-        }
-        if (self.registers.accumulator & 0b1000_0000 == 1) {
-            self.registers.set_neg();
-        }
+        self.update_zero_negative_flags(self.registers.accumulator);
     }
 
     // Opcode: $AD
@@ -707,12 +697,7 @@ impl Cpu {
     // 2 cycles
     fn ldx_immediate(&mut self, value: u8) {
         self.registers.index_x = value;
-        if (self.registers.index_x == 0) {
-            self.registers.set_zero();
-        }
-        if (self.registers.index_x & 0b1000_0000 == 1) {
-            self.registers.set_neg();
-        }
+        self.update_zero_negative_flags(self.registers.index_x);
     }
 
     // Opcode: $AE
@@ -758,12 +743,7 @@ impl Cpu {
     // 2 cycles
     fn ldy_immediate(&mut self, value: u8) {
         self.registers.index_y = value;
-        if (self.registers.index_y == 0) {
-            self.registers.set_zero();
-        }
-        if (self.registers.index_y & 0b1000_0000 == 1) {
-            self.registers.set_neg();
-        }
+        self.update_zero_negative_flags(self.registers.index_y);
     }
 
     // Opcode: $AC
@@ -874,17 +854,7 @@ impl Cpu {
     fn and_immediate(&mut self, value: u8) {
         self.registers.accumulator &= value;
 
-        if self.registers.accumulator == 0 {
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0 {
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        }
+        self.update_zero_negative_flags(self.registers.accumulator);
     }
 
     // Opcode: $25
@@ -963,17 +933,7 @@ impl Cpu {
     fn eor_immediate(&mut self, value: u8) {
         self.registers.accumulator ^= value;
 
-        if self.registers.accumulator == 0 {
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0 {
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        }
+        self.update_zero_negative_flags(self.registers.accumulator);
     }
 
     // Opcode: $45
@@ -1052,17 +1012,7 @@ impl Cpu {
     fn ora_immediate(&mut self, value: u8) {
         self.registers.accumulator |= value;
 
-        if self.registers.accumulator == 0 {
-            self.registers.set_zero();
-        } else {
-            self.registers.unset_zero();
-        }
-
-        if self.registers.accumulator & 0b1000_0000 != 0 {
-            self.registers.set_neg()
-        } else {
-            self.registers.unset_neg()
-        }
+        self.update_zero_negative_flags(self.registers.accumulator);
     }
 
     // Opcode: $05
@@ -1501,19 +1451,19 @@ impl Cpu {
     // Opcode: $86
     // Cycles: 3
     fn stx_zero_page(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page(addr_lower_byte, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x));
+        self.memory.store_zero_page(addr_lower_byte, self.registers.index_x);
     }
 
     // Opcode: $96
     // Cycles: 4
     fn stx_zero_page_y(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_y, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x));
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_y, self.registers.index_y);
     }
 
     // Opcode: $8E
     // Cycles: 4
     fn stx_absolute(&mut self, address: u16){
-        self.memory.store_absolute(address, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x))
+        self.memory.store_absolute(address, self.registers.index_x)
     }
 
     /*
@@ -1524,19 +1474,60 @@ impl Cpu {
     // Opcode: $84
     // Cycles: 3
     fn sty_zero_page(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page(addr_lower_byte, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_y));
+        self.memory.store_zero_page(addr_lower_byte, self.registers.index_y);
     }
 
     // Opcode: $94
     // Cycles: 4
     fn sty_zero_page_x(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_y));
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_y, self.registers.index_y);
     }
 
     // Opcode: $9C
     // Cycles: 4
     fn sty_absolute(&mut self, address: u16){
-        self.memory.store_absolute(address, self.memory.fetch_zero_page_y(addr_lower_byte, self.registers.index_y))
+        self.memory.store_absolute(address, self.registers.index_y)
+    }
+
+    /*
+     *   INC - Increment Memory
+     *   Increment the value at a specified memory location
+     */
+    
+    // Opcode: $E6
+    // Cycles: 5
+    fn inc_zero_page(&mut self, addr_lower_byte: u8){
+        let new_val = self.memory.fetch_zero_page(addr_lower_byte)+1;
+
+        self.memory.store_zero_page(address, new_val);
+        update_zero_negative_flags(new_val);
+    }
+
+    // Opcode: $F6
+    // Cycles: 6
+    fn inc_zero_page_x(&mut self, addr_lower_byte: u8){
+        let new_val = self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x)+1;
+
+        self.memory.store_zero_page_x(address, self.registers.index_x, new_val);
+        update_zero_negative_flags(new_val);
+    }
+
+    // Opcode: $EE
+    // Cycles: 6
+    fn inc_absolute(&mut self, address: u16) {
+        let new_val = self.memory.fetch_absolute(address)+1;
+
+        self.memory.store_absolute(address, new_val);
+        update_zero_negative_flags(new_val);
+    }
+
+    // Opcode: $FE
+    // Cycles: 7
+    fn inc_absolute_x(&mut self, address: u16){
+        let new_val = self.memory.fetch_absolute_x(address)+1;
+
+        self.memory.store_absolute_x(address, self.registers.index_x, new_val);
+        update_zero_negative_flags(new_val);
     }
 
 }

@@ -410,7 +410,7 @@ impl Cpu {
     fn asl_zero_page(&mut self, addr_lower_byte: u8) {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
         let value = self.asl_immediate(value);
-        // store value in same memory address
+        self.memory.store_zero_page(addr_lower_byte, value);
     }
 
     // Opcode: $16
@@ -420,6 +420,7 @@ impl Cpu {
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.asl_immediate(value);
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
     }
 
     // Opcode: $0E
@@ -427,6 +428,7 @@ impl Cpu {
     fn asl_absolute(&mut self, address: u16) {
         let value = self.memory.fetch_absolute(address);
         let value = self.asl_immediate(value);
+        self.memory.store_absolute(address, value);
     }
 
     // Opcode: $1E
@@ -436,6 +438,7 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.asl_immediate(value);
+        self.memory.store_absolute_x(address, self.registers.index_x, value);
     }
 
     /*
@@ -478,7 +481,7 @@ impl Cpu {
     fn lsr_zero_page(&mut self, addr_lower_byte: u8) {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
         let value = self.lsr_immediate(value);
-        // store value in same memory address
+        self.memory.store_zero_page(addr_lower_byte, value);
     }
 
     // Opcode: $56
@@ -488,6 +491,7 @@ impl Cpu {
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.lsr_immediate(value);
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
     }
 
     // Opcode: $4E
@@ -495,6 +499,7 @@ impl Cpu {
     fn lsr_absolute(&mut self, address: u16) {
         let value = self.memory.fetch_absolute(address);
         let value = self.lsr_immediate(value);
+        self.memory.store_absolute(address, value);
     }
 
     // Opcode: $5E
@@ -504,6 +509,7 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.lsr_immediate(value);
+        self.memory.store_absolute_x(address, self.registers.index_x, value);
     }
 
     /*
@@ -539,7 +545,7 @@ impl Cpu {
     fn rol_zero_page(&mut self, addr_lower_byte: u8) {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
         let value = self.rol_immediate(value);
-        // store value in same memory address
+        self.memory.store_zero_page(addr_lower_byte, value);
     }
 
     // Opcode: $36
@@ -549,6 +555,7 @@ impl Cpu {
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.rol_immediate(value);
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
     }
 
     // Opcode: $2E
@@ -556,6 +563,7 @@ impl Cpu {
     fn rol_absolute(&mut self, address: u16) {
         let value = self.memory.fetch_absolute(address);
         let value = self.rol_immediate(value);
+        self.memory.store_absolute(address, value);
     }
 
     // Opcode: $3E
@@ -565,6 +573,7 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.rol_immediate(value);
+        self.memory.store_absolute_x(address, self.registers.index_x, value);
     }
 
     /*
@@ -603,7 +612,7 @@ impl Cpu {
     fn ror_zero_page(&mut self, addr_lower_byte: u8) {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
         let value = self.ror_immediate(value);
-        // store value in same memory address
+        self.memory.store_zero_page(addr_lower_byte, value);
     }
 
     // Opcode: $76
@@ -613,6 +622,7 @@ impl Cpu {
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.ror_immediate(value);
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
     }
 
     // Opcode: $6E
@@ -620,6 +630,7 @@ impl Cpu {
     fn ror_absolute(&mut self, address: u16) {
         let value = self.memory.fetch_absolute(address);
         let value = self.ror_immediate(value);
+        self.memory.store_absolute(address, value);
     }
 
     // Opcode: $7E
@@ -629,6 +640,7 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.ror_immediate(value);
+        self.memory.store_absolute_x(address, self.registers.index_x, value);
     }
 
     /*

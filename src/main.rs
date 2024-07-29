@@ -1607,7 +1607,7 @@ impl Cpu {
      *   DEX - Decrement X Register
      *   Increment the value at the X Register
      *   
-     *   Opcode: $E8
+     *   Opcode: $CA
      *   Cycles: 2
      */
 
@@ -1620,7 +1620,7 @@ impl Cpu {
      *   DEY - Decrement Y Register
      *   Decrement the value at the Y Register
      *   
-     *   Opcode: $C8
+     *   Opcode: $88
      *   Cycles: 2
      */
 

@@ -1445,6 +1445,100 @@ impl Cpu {
             self.registers.program_counter += offset - 2;
         }
     }
+
+    /*
+     *   STA - Store Accumulator
+     *   Store the value of the accumulator into memory
+     */
+    
+    // Opcode: $85
+    // Cycles: 3
+    fn sta_zero_page(&mut self, addr_lower_byte: u8) {
+        self.memory.store_zero_page(addr_lower_byte, self.registers.accumulator);
+    }
+
+    // Opcode: $95
+    // Cycles: 4
+    fn sta_zero_page_x(&mut self, addr_lower_byte: u8){
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, self.registers.accumulator);
+    }
+
+    // Opcode: $8D
+    // Cycles: 4
+    fn sta_absolute(&mut self, address: u16){
+        self.memory.store_absolute(address, self.registers.accumulator);
+    }
+
+    // Opcode: $9D
+    // Cycles: 5
+    fn sta_absolute_x(&mut self, address: u16){
+        self.store_absolute_x(address, self.registers.index_x, self.registers.accumulator);
+    }
+
+    // Opcode: $99
+    // Cycles: 5
+    fn sta_absolute_y(&mut self, address: u16){
+        self.store_absolute_x(address, self.registers.index_y, self.registers.accumulator);
+    }
+
+    // Opcode: $81
+    // Cycles: 6
+    fn sta_indirect_x(&mut self, addr_lower_byte: u8){
+        self.store_indirect_x(addr_lower_byte, self.registers.index_x, self.registers.accumulator);
+    }
+
+    // Opcode: $91
+    // Cycles: 6
+    fn sta_indirect_y(&mut self, addr_lower_byte: u8){
+        self.store_indirect_x(addr_lower_byte, self.registers.index_y, self.registers.accumulator);
+    }
+
+    /*
+     *   STX - Store the value at the X register
+     *   Store the value of the X register into memory
+     */
+    
+    // Opcode: $86
+    // Cycles: 3
+    fn stx_zero_page(&mut self, addr_lower_byte: u8) {
+        self.memory.store_zero_page(addr_lower_byte, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x));
+    }
+
+    // Opcode: $96
+    // Cycles: 4
+    fn stx_zero_page_y(&mut self, addr_lower_byte: u8) {
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_y, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x));
+    }
+
+    // Opcode: $8E
+    // Cycles: 4
+    fn stx_absolute(&mut self, address: u16){
+        self.memory.store_absolute(address, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x))
+    }
+
+    /*
+     *   STY - Store the value at the Y register
+     *   Store the value of the Y register into memory
+     */
+    
+    // Opcode: $84
+    // Cycles: 3
+    fn sty_zero_page(&mut self, addr_lower_byte: u8) {
+        self.memory.store_zero_page(addr_lower_byte, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_y));
+    }
+
+    // Opcode: $94
+    // Cycles: 4
+    fn sty_zero_page_x(&mut self, addr_lower_byte: u8) {
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_y));
+    }
+
+    // Opcode: $9C
+    // Cycles: 4
+    fn sty_absolute(&mut self, address: u16){
+        self.memory.store_absolute(address, self.memory.fetch_zero_page_y(addr_lower_byte, self.registers.index_y))
+    }
+
 }
 
 #[cfg(test)]

@@ -1624,7 +1624,7 @@ impl Cpu {
      *   Cycles: 2
      */
 
-    fn dex_implied(&mut self){
+    fn dey_implied(&mut self){
         self.registers.index_y -= 1
         update_zero_negative_flags(self.registers.index_y);
     }

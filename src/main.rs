@@ -1651,6 +1651,66 @@ impl Cpu {
         self.registers.index_y -= 1;
         self.update_zero_negative_flags(self.registers.index_y);
     }
+
+    /*
+     *   BRK - Force Interrupt
+     *   Forces the generation of an interrupt request
+     *   
+     *   Opcode: $00
+     *   Cycles: 7
+     */
+    
+    fn brk_implied(&mut self){
+
+        let pc_high = (self.registers.program_counter >> 8) as u8;
+        self.stack_push(pc_high);
+        
+        // Push low byte
+        let pc_low = (self.registers.program_counter & 0xFF) as u8;
+        self.stack_push(pc_low);
+        self.stack_push(self.registers.processor_status);
+
+        let irq_vector_low = self.memory.fetch_absolute(0xFFFE) as u16;
+        let irq_vector_high = self.memory.fetch_absolute(0xFFFF) as u16;
+        let irq_vector = irq_vector_low | (irq_vector_high << 8);
+        self.registers.program_counter = irq_vector;
+
+        self.registers.set_break();
+    }
+
+    /*
+     *   NOP - No Operation
+     *   Simply increments the PC to the next instruction
+     *   
+     *   Opcode: $EA
+     *   Cycles: 2
+     */
+
+    fn nop_implied(&mut self) {
+        self.registers.program_counter=self.registers.program_counter.wrapping_add(1);
+    }
+
+    /*
+     *   RTI - Return from Interrupt
+     *   Used at the end of an interrupt processing routine
+     *   
+     *   Opcode: $40
+     *   Cycles: 6
+     */
+
+     fn rti_implied(&mut self) {
+        let status = self.stack_pop();
+        self.registers.processor_status = status;
+
+        // Pull the low byte of the PC
+        let pc_low = self.stack_pop() as u16;
+        // Pull the high byte of the PC
+        let pc_high = self.stack_pop() as u16;
+
+        // Combine high and low bytes to form the full PC value
+        let pc = (pc_high << 8) | pc_low;
+        self.registers.program_counter = pc;
+    }
 }
 
 #[cfg(test)]

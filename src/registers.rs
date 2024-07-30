@@ -26,7 +26,7 @@ impl Registers {
     pub fn new() -> Registers {
         Self {
             program_counter: 0,
-            stack_pointer: 0x0100,
+            stack_pointer: 0x00,
             accumulator: 0,
             index_x: 0,
             index_y: 0,

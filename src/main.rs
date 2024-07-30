@@ -35,12 +35,14 @@ impl Cpu {
      */
 
     fn stack_push(&mut self, val: u8) {
-        self.memory.buffer[self.registers.stack_pointer] = val;
+        let stack_addr = (0x1 << 8) | self.registers.stack_pointer;
+        self.memory.buffer[stack_addr as usize] = val;
         self.registers.stack_pointer += 1;
     }
 
     fn stack_pop(&mut self) -> u8 {
-        let top = self.memory.buffer[self.registers.stack_pointer];
+        let stack_addr = (0x1 << 8) | self.registers.stack_pointer;
+        let top = self.memory.buffer[stack_addr as usize];
         self.registers.stack_pointer -= 1;
         top
     }
@@ -56,10 +58,12 @@ impl Cpu {
         // check if both are positive or if both are negative
         let same_sign = (value & 0b1000_0000) == (self.registers.accumulator & 0b1000_0000);
 
-        let sum: u16 = (self.registers.accumulator as u16) + value + self.registers.get_carry();
+        let sum: u16 = (self.registers.accumulator as u16)
+            + (value as u16)
+            + (self.registers.get_carry() as u16);
 
         // check if two positive sum to neg or vice versa
-        if same_sign && (sum & 0b1000_0000) != (value & (0b1000_0000 as u16)) {
+        if same_sign && (sum & 0b1000_0000) != (value & 0b1000_0000) as u16 {
             self.registers.set_overflow()
         }
 
@@ -211,12 +215,12 @@ impl Cpu {
     // Opcode: $E9
     // 2 cycles
     fn cmp_immediate(&mut self, value: u8) {
-        if (self.registers.accumulator == value) {
+        if self.registers.accumulator == value {
             self.registers.set_zero();
         } else {
             self.registers.unset_zero();
         }
-        if (self.registers.accumulator >= value) {
+        if self.registers.accumulator >= value {
             self.registers.set_carry();
         } else {
             self.registers.unset_carry();
@@ -225,7 +229,7 @@ impl Cpu {
         let result = self.registers.accumulator - value;
 
         // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
-        if (result & 0b1000_0000 == 1) {
+        if result & 0b1000_0000 == 1 {
             self.registers.set_neg();
         } else {
             self.registers.unset_neg();
@@ -299,12 +303,12 @@ impl Cpu {
     // Opcode: $E0
     // 2 cycles
     fn cpx_immediate(&mut self, value: u8) {
-        if (self.registers.index_x == value) {
+        if self.registers.index_x == value {
             self.registers.set_zero()
         } else {
             self.registers.unset_zero()
         }
-        if (self.registers.index_x >= value) {
+        if self.registers.index_x >= value {
             self.registers.set_carry()
         } else {
             self.registers.unset_carry()
@@ -313,7 +317,7 @@ impl Cpu {
         let result = self.registers.index_x - value;
 
         // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
-        if (result & 0b1000_0000 == 1) {
+        if result & 0b1000_0000 == 1 {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -342,12 +346,12 @@ impl Cpu {
     // Opcode: $C0
     // 2 cycles
     fn cpy_immediate(&mut self, value: u8) {
-        if (self.registers.index_y == value) {
+        if self.registers.index_y == value {
             self.registers.set_zero()
         } else {
             self.registers.unset_zero()
         }
-        if (self.registers.index_y >= value) {
+        if self.registers.index_y >= value {
             self.registers.set_carry()
         } else {
             self.registers.unset_carry()
@@ -355,7 +359,7 @@ impl Cpu {
 
         let result = self.registers.index_y - value;
 
-        if (result & 0b1000_0000 == 1) {
+        if result & 0b1000_0000 == 1 {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -420,7 +424,8 @@ impl Cpu {
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.asl_immediate(value);
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+        self.memory
+            .store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
     }
 
     // Opcode: $0E
@@ -438,7 +443,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.asl_immediate(value);
-        self.memory.store_absolute_x(address, self.registers.index_x, value);
+        self.memory
+            .store_absolute_x(address, self.registers.index_x, value);
     }
 
     /*
@@ -456,12 +462,12 @@ impl Cpu {
 
         let new_value = value >> 1;
 
-        if (new_value == 0) {
+        if new_value == 0 {
             self.registers.set_zero();
         }
 
         // Not really necessary as bit 7 will be 0
-        /* if (new_value & 0b1000_000 == 1) {
+        /* if new_value & 0b1000_000 == 1 {
             self.registers.set_neg()
         } */
         self.registers.unset_neg();
@@ -491,7 +497,8 @@ impl Cpu {
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.lsr_immediate(value);
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+        self.memory
+            .store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
     }
 
     // Opcode: $4E
@@ -509,7 +516,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.lsr_immediate(value);
-        self.memory.store_absolute_x(address, self.registers.index_x, value);
+        self.memory
+            .store_absolute_x(address, self.registers.index_x, value);
     }
 
     /*
@@ -555,7 +563,8 @@ impl Cpu {
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.rol_immediate(value);
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+        self.memory
+            .store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
     }
 
     // Opcode: $2E
@@ -573,7 +582,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.rol_immediate(value);
-        self.memory.store_absolute_x(address, self.registers.index_x, value);
+        self.memory
+            .store_absolute_x(address, self.registers.index_x, value);
     }
 
     /*
@@ -622,7 +632,8 @@ impl Cpu {
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.ror_immediate(value);
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+        self.memory
+            .store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
     }
 
     // Opcode: $6E
@@ -640,7 +651,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.ror_immediate(value);
-        self.memory.store_absolute_x(address, self.registers.index_x, value);
+        self.memory
+            .store_absolute_x(address, self.registers.index_x, value);
     }
 
     /*
@@ -1127,13 +1139,13 @@ impl Cpu {
             self.registers.unset_zero();
         }
 
-        if (value & 0b1000_0000) != 0 {
+        if value & 0b1000_0000 != 0 {
             self.registers.set_neg();
         } else {
             self.registers.unset_neg();
         }
 
-        if (value & 0b0100_0000) != 0 {
+        if value & 0b0100_0000 != 0 {
             self.registers.set_overflow();
         } else {
             self.registers.unset_overflow();
@@ -1152,13 +1164,13 @@ impl Cpu {
             self.registers.unset_zero();
         }
 
-        if (value & 0b1000_0000) != 0 {
+        if value & 0b1000_0000 != 0 {
             self.registers.set_neg();
         } else {
             self.registers.unset_neg();
         }
 
-        if (value & 0b0100_0000) != 0 {
+        if value & 0b0100_0000 != 0 {
             self.registers.set_overflow();
         } else {
             self.registers.unset_overflow();
@@ -1317,7 +1329,12 @@ impl Cpu {
      *   Cycles: 6
      */
     fn jsr(&mut self, address: u16) {
-        self.stack_push(self.registers.program_counter + (2 as u8));
+        // BUG: Not sure about this +2 offset..
+        let pc_high = ((self.registers.program_counter + 2) >> 8) as u8;
+        let pc_low = ((self.registers.program_counter + 2) & 0xFF) as u8;
+        self.stack_push(pc_high);
+        self.stack_push(pc_low);
+
         self.registers.program_counter = address;
     }
 
@@ -1330,7 +1347,7 @@ impl Cpu {
      */
     fn bcc(&mut self, offset: u8) {
         if self.registers.get_carry() == 0 {
-            self.registers.program_counter += offset - 2;
+            self.registers.program_counter += (offset as u16) - 2;
         }
     }
 
@@ -1343,7 +1360,7 @@ impl Cpu {
      */
     fn bcs(&mut self, offset: u8) {
         if self.registers.get_carry() == 1 {
-            self.registers.program_counter += offset - 2;
+            self.registers.program_counter += (offset as u16) - 2;
         }
     }
 
@@ -1356,7 +1373,7 @@ impl Cpu {
      */
     fn beq(&mut self, offset: u8) {
         if self.registers.get_zero() == 1 {
-            self.registers.program_counter += offset - 2;
+            self.registers.program_counter += (offset as u16) - 2;
         }
     }
 
@@ -1369,7 +1386,7 @@ impl Cpu {
      */
     fn bmi(&mut self, offset: u8) {
         if self.registers.get_neg() == 1 {
-            self.registers.program_counter += offset - 2;
+            self.registers.program_counter += (offset as u16) - 2;
         }
     }
 
@@ -1382,7 +1399,7 @@ impl Cpu {
      */
     fn bne(&mut self, offset: u8) {
         if self.registers.get_zero() == 0 {
-            self.registers.program_counter += offset - 2;
+            self.registers.program_counter += (offset as u16) - 2;
         }
     }
 
@@ -1395,7 +1412,7 @@ impl Cpu {
      */
     fn bpl(&mut self, offset: u8) {
         if self.registers.get_neg() == 0 {
-            self.registers.program_counter += offset - 2;
+            self.registers.program_counter += (offset as u16) - 2;
         }
     }
 
@@ -1408,7 +1425,7 @@ impl Cpu {
      */
     fn bvc(&mut self, offset: u8) {
         if self.registers.get_overflow() == 0 {
-            self.registers.program_counter += offset - 2;
+            self.registers.program_counter += (offset as u16) - 2;
         }
     }
 
@@ -1421,7 +1438,7 @@ impl Cpu {
      */
     fn bvs(&mut self, offset: u8) {
         if self.registers.get_overflow() == 1 {
-            self.registers.program_counter += offset - 2;
+            self.registers.program_counter += (offset as u16) - 2;
         }
     }
 
@@ -1429,69 +1446,90 @@ impl Cpu {
      *   STA - Store Accumulator
      *   Store the value of the accumulator into memory
      */
-    
+
     // Opcode: $85
     // Cycles: 3
     fn sta_zero_page(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page(addr_lower_byte, self.registers.accumulator);
+        self.memory
+            .store_zero_page(addr_lower_byte, self.registers.accumulator);
     }
 
     // Opcode: $95
     // Cycles: 4
-    fn sta_zero_page_x(&mut self, addr_lower_byte: u8){
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, self.registers.accumulator);
+    fn sta_zero_page_x(&mut self, addr_lower_byte: u8) {
+        self.memory.store_zero_page_x(
+            addr_lower_byte,
+            self.registers.index_x,
+            self.registers.accumulator,
+        );
     }
 
     // Opcode: $8D
     // Cycles: 4
-    fn sta_absolute(&mut self, address: u16){
-        self.memory.store_absolute(address, self.registers.accumulator);
+    fn sta_absolute(&mut self, address: u16) {
+        self.memory
+            .store_absolute(address, self.registers.accumulator);
     }
 
     // Opcode: $9D
     // Cycles: 5
-    fn sta_absolute_x(&mut self, address: u16){
-        self.memory.store_absolute_x(address, self.registers.index_x, self.registers.accumulator);
+    fn sta_absolute_x(&mut self, address: u16) {
+        self.memory
+            .store_absolute_x(address, self.registers.index_x, self.registers.accumulator);
     }
 
     // Opcode: $99
     // Cycles: 5
-    fn sta_absolute_y(&mut self, address: u16){
-        self.memory.store_absolute_x(address, self.registers.index_y, self.registers.accumulator);
+    fn sta_absolute_y(&mut self, address: u16) {
+        self.memory
+            .store_absolute_x(address, self.registers.index_y, self.registers.accumulator);
     }
 
     // Opcode: $81
     // Cycles: 6
-    fn sta_indirect_x(&mut self, addr_lower_byte: u8){
-        self.memory.store_indirect_x(addr_lower_byte, self.registers.index_x, self.registers.accumulator);
+    fn sta_indirect_x(&mut self, addr_lower_byte: u8) {
+        self.memory.store_indirect_x(
+            addr_lower_byte,
+            self.registers.index_x,
+            self.registers.accumulator,
+        );
     }
 
     // Opcode: $91
     // Cycles: 6
-    fn sta_indirect_y(&mut self, addr_lower_byte: u8){
-        self.memory.store_indirect_x(addr_lower_byte, self.registers.index_y, self.registers.accumulator);
+    fn sta_indirect_y(&mut self, addr_lower_byte: u8) {
+        self.memory.store_indirect_x(
+            addr_lower_byte,
+            self.registers.index_y,
+            self.registers.accumulator,
+        );
     }
 
     /*
      *   STX - Store the value at the X register
      *   Store the value of the X register into memory
      */
-    
+
     // Opcode: $86
     // Cycles: 3
     fn stx_zero_page(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page(addr_lower_byte, self.registers.index_x);
+        self.memory
+            .store_zero_page(addr_lower_byte, self.registers.index_x);
     }
 
     // Opcode: $96
     // Cycles: 4
     fn stx_zero_page_x(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_y, self.registers.index_x);
+        self.memory.store_zero_page_x(
+            addr_lower_byte,
+            self.registers.index_y,
+            self.registers.index_x,
+        );
     }
 
     // Opcode: $8E
     // Cycles: 4
-    fn stx_absolute(&mut self, address: u16){
+    fn stx_absolute(&mut self, address: u16) {
         self.memory.store_absolute(address, self.registers.index_x)
     }
 
@@ -1499,22 +1537,27 @@ impl Cpu {
      *   STY - Store the value at the Y register
      *   Store the value of the Y register into memory
      */
-    
+
     // Opcode: $84
     // Cycles: 3
     fn sty_zero_page(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page(addr_lower_byte, self.registers.index_y);
+        self.memory
+            .store_zero_page(addr_lower_byte, self.registers.index_y);
     }
 
     // Opcode: $94
     // Cycles: 4
     fn sty_zero_page_x(&mut self, addr_lower_byte: u8) {
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, self.registers.index_y);
+        self.memory.store_zero_page_x(
+            addr_lower_byte,
+            self.registers.index_x,
+            self.registers.index_y,
+        );
     }
 
     // Opcode: $9C
     // Cycles: 4
-    fn sty_absolute(&mut self, address: u16){
+    fn sty_absolute(&mut self, address: u16) {
         self.memory.store_absolute(address, self.registers.index_y)
     }
 
@@ -1522,11 +1565,11 @@ impl Cpu {
      *   INC - Increment Memory
      *   Increment the value at a specified memory location
      */
-    
+
     // Opcode: $E6
     // Cycles: 5
-    fn inc_zero_page(&mut self, addr_lower_byte: u8){
-        let new_val = self.memory.fetch_zero_page(addr_lower_byte)+1;
+    fn inc_zero_page(&mut self, addr_lower_byte: u8) {
+        let new_val = self.memory.fetch_zero_page(addr_lower_byte) + 1;
 
         self.memory.store_zero_page(addr_lower_byte, new_val);
         self.update_zero_negative_flags(new_val);
@@ -1534,17 +1577,21 @@ impl Cpu {
 
     // Opcode: $F6
     // Cycles: 6
-    fn inc_zero_page_x(&mut self, addr_lower_byte: u8){
-        let new_val = self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x)+1;
+    fn inc_zero_page_x(&mut self, addr_lower_byte: u8) {
+        let new_val = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x)
+            + 1;
 
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, new_val);
+        self.memory
+            .store_zero_page_x(addr_lower_byte, self.registers.index_x, new_val);
         self.update_zero_negative_flags(new_val);
     }
 
     // Opcode: $EE
     // Cycles: 6
     fn inc_absolute(&mut self, address: u16) {
-        let new_val = self.memory.fetch_absolute(address)+1;
+        let new_val = self.memory.fetch_absolute(address) + 1;
 
         self.memory.store_absolute(address, new_val);
         self.update_zero_negative_flags(new_val);
@@ -1552,22 +1599,26 @@ impl Cpu {
 
     // Opcode: $FE
     // Cycles: 7
-    fn inc_absolute_x(&mut self, address: u16){
-        let new_val = self.memory.fetch_absolute_x(address, self.registers.index_x)+1;
+    fn inc_absolute_x(&mut self, address: u16) {
+        let new_val = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x)
+            + 1;
 
-        self.memory.store_absolute_x(address, self.registers.index_x, new_val);
+        self.memory
+            .store_absolute_x(address, self.registers.index_x, new_val);
         self.update_zero_negative_flags(new_val);
     }
 
     /*
      *   INX - Increment X Register
      *   Increment the value at the X Register
-     *   
+     *
      *   Opcode: $E8
      *   Cycles: 2
      */
 
-    fn inx_implied(&mut self){
+    fn inx_implied(&mut self) {
         self.registers.index_x += 1;
         self.update_zero_negative_flags(self.registers.index_x);
     }
@@ -1575,12 +1626,12 @@ impl Cpu {
     /*
      *   INY - Increment Y Register
      *   Increment the value at the Y Register
-     *   
+     *
      *   Opcode: $C8
      *   Cycles: 2
      */
 
-    fn iny_implied(&mut self){
+    fn iny_implied(&mut self) {
         self.registers.index_y += 1;
         self.update_zero_negative_flags(self.registers.index_y);
     }
@@ -1589,11 +1640,11 @@ impl Cpu {
      *   DEC - Decrement Memory
      *   Decrement the value at a specified memory location
      */
-    
+
     // Opcode: $C6
     // Cycles: 5
-    fn dec_zero_page(&mut self, addr_lower_byte: u8){
-        let new_val = self.memory.fetch_zero_page(addr_lower_byte)-1;
+    fn dec_zero_page(&mut self, addr_lower_byte: u8) {
+        let new_val = self.memory.fetch_zero_page(addr_lower_byte) - 1;
 
         self.memory.store_zero_page(addr_lower_byte, new_val);
         self.update_zero_negative_flags(new_val);
@@ -1601,17 +1652,21 @@ impl Cpu {
 
     // Opcode: $D6
     // Cycles: 6
-    fn dnc_zero_page_x(&mut self, addr_lower_byte: u8){
-        let new_val = self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x)-1;
+    fn dnc_zero_page_x(&mut self, addr_lower_byte: u8) {
+        let new_val = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_x)
+            - 1;
 
-        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, new_val);
+        self.memory
+            .store_zero_page_x(addr_lower_byte, self.registers.index_x, new_val);
         self.update_zero_negative_flags(new_val);
     }
 
     // Opcode: $CE
     // Cycles: 6
     fn dec_absolute(&mut self, address: u16) {
-        let new_val = self.memory.fetch_absolute(address)-1;
+        let new_val = self.memory.fetch_absolute(address) - 1;
 
         self.memory.store_absolute(address, new_val);
         self.update_zero_negative_flags(new_val);
@@ -1619,22 +1674,26 @@ impl Cpu {
 
     // Opcode: $DE
     // Cycles: 7
-    fn dec_absolute_x(&mut self, address: u16){
-        let new_val = self.memory.fetch_absolute_x(address, self.registers.index_x)-1;
+    fn dec_absolute_x(&mut self, address: u16) {
+        let new_val = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_x)
+            - 1;
 
-        self.memory.store_absolute_x(address, self.registers.index_x, new_val);
+        self.memory
+            .store_absolute_x(address, self.registers.index_x, new_val);
         self.update_zero_negative_flags(new_val);
     }
 
     /*
      *   DEX - Decrement X Register
      *   Increment the value at the X Register
-     *   
+     *
      *   Opcode: $CA
      *   Cycles: 2
      */
 
-    fn dex_implied(&mut self){
+    fn dex_implied(&mut self) {
         self.registers.index_x -= 1;
         self.update_zero_negative_flags(self.registers.index_x);
     }
@@ -1642,12 +1701,12 @@ impl Cpu {
     /*
      *   DEY - Decrement Y Register
      *   Decrement the value at the Y Register
-     *   
+     *
      *   Opcode: $88
      *   Cycles: 2
      */
 
-    fn dey_implied(&mut self){
+    fn dey_implied(&mut self) {
         self.registers.index_y -= 1;
         self.update_zero_negative_flags(self.registers.index_y);
     }
@@ -1655,16 +1714,15 @@ impl Cpu {
     /*
      *   BRK - Force Interrupt
      *   Forces the generation of an interrupt request
-     *   
+     *
      *   Opcode: $00
      *   Cycles: 7
      */
-    
-    fn brk_implied(&mut self){
 
+    fn brk_implied(&mut self) {
         let pc_high = (self.registers.program_counter >> 8) as u8;
         self.stack_push(pc_high);
-        
+
         // Push low byte
         let pc_low = (self.registers.program_counter & 0xFF) as u8;
         self.stack_push(pc_low);
@@ -1681,24 +1739,22 @@ impl Cpu {
     /*
      *   NOP - No Operation
      *   Simply increments the PC to the next instruction
-     *   
+     *
      *   Opcode: $EA
      *   Cycles: 2
      */
 
-    fn nop_implied(&mut self) {
-        self.registers.program_counter=self.registers.program_counter.wrapping_add(1);
-    }
+    fn nop_implied(&mut self) {}
 
     /*
      *   RTI - Return from Interrupt
      *   Used at the end of an interrupt processing routine
-     *   
+     *
      *   Opcode: $40
      *   Cycles: 6
      */
 
-     fn rti_implied(&mut self) {
+    fn rti_implied(&mut self) {
         let status = self.stack_pop();
         self.registers.processor_status = status;
 
@@ -1713,17 +1769,6 @@ impl Cpu {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::*;
-
-    #[test]
-    fn test_cpu() {
-        assert_eq!(((0x80 as u8).wrapping_add(0xFF as u8)), 0x7F);
-    }
-}
-
 fn main() {
-    println!("Hello, world!");
+    let cpu = Cpu::new();
 }

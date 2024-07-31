@@ -1,3 +1,7 @@
+use anyhow::Result;
+use simplelog::*;
+use std::{fs::File, io::Read};
+
 // Memory abstraction layer, acts as the data and address bus
 /// 16-bit address bus
 /// Special notes:
@@ -7,14 +11,43 @@
 /// - Little endian
 // Includes stack abstraction methods
 pub struct Memory {
-    pub buffer: [u8; 0xFFFF],
+    pub buffer: Vec<u8>,
 }
 
 impl Memory {
     pub fn new() -> Self {
         Self {
-            buffer: [0; 0xFFFF],
+            buffer: vec![0; 0xFFFF + 1],
         }
+    }
+
+    pub(crate) fn load_ines_rom(&mut self, path: &str) -> Result<()> {
+        let mut file = File::open(path)?;
+        let mut buffer = Vec::new();
+
+        file.read_to_end(&mut buffer)?;
+
+        info!("Loaded {} bytes from ROM", buffer.len());
+
+        let prg_rom_size = buffer[5];
+        info!("Program ROM size: {} kb", prg_rom_size * 16);
+
+        let prg_rom_size: usize = (prg_rom_size as usize * 16384).into();
+        info!("Copying {} bytes", prg_rom_size);
+
+        let mapper_flags = buffer[7] >> 4;
+        info!("Mapper type: {}", mapper_flags);
+
+        info!("RAM size {}", self.buffer.len());
+
+        let prg_rom = &buffer[16..(16 + prg_rom_size)];
+
+        // implementing NROM mapper (mapper 0) for now
+        // copy prg-rom to 0x8000 and 0xC000
+        self.buffer[0x8000..(0x8000 + prg_rom_size)].clone_from_slice(prg_rom);
+        self.buffer[0xC000..(0xC000 + prg_rom_size)].clone_from_slice(prg_rom);
+
+        Ok(())
     }
 
     pub(crate) fn fetch_absolute(&self, address: u16) -> u8 {

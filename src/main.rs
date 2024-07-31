@@ -15,9 +15,6 @@ mod memory;
 mod registers;
 
 fn main() -> Result<()> {
-    let a = [1, 2, 3, 4, 5];
-    let s = &a[3..5];
-    assert_eq!(s, &[4, 5]);
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Info,
         Config::default(),
@@ -29,11 +26,15 @@ fn main() -> Result<()> {
     let mut cpu = Cpu::new();
     let mem = &mut cpu.memory;
 
-    mem.load_ines_rom("romtest/nestest.nes")
+    mem.load_ines_rom("romtest/nestest.nes")?;
+    cpu.init_pc();
+
     // let running = true;
 
     // while running {
     //     // cpu.tick();
     //     // sleep for a bit
     // }
+
+    Ok(())
 }

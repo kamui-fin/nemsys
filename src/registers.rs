@@ -25,16 +25,14 @@ pub struct Registers {
 impl Registers {
     pub fn new() -> Registers {
         Self {
-            program_counter: 0x8000,
+            program_counter: 0, // will be initialized later after loading ROM
             stack_pointer: 0x00,
             accumulator: 0,
             index_x: 0,
             index_y: 0,
-            processor_status: 0,
+            processor_status: 0b000100,
         }
     }
-
-    // TODO: should we refactor or nah
 
     /*
      * Clear bit "setter" methods

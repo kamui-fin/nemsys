@@ -13,6 +13,10 @@ impl Cpu {
         }
     }
 
+    pub fn init_pc(&mut self) {
+        self.registers.program_counter = self.memory.fetch_indirect(0xFFFC)
+    }
+
     // Helper method
     fn update_zero_negative_flags(&mut self, value: u8) {
         if value == 0 {

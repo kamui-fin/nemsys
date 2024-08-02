@@ -1783,31 +1783,35 @@ impl Cpu {
     }
 
     /*
-     * Decoder for instructions
-     * 
-     * Parameters: addressing mode
-     * Return: the number of bytes based on addressing mode
+     * Returns the 
      */
-    fn decoder(&mut self, mode: AddressingMode) -> Vec<u8> {
-        match mode {
-            AddressingMode::Immediate => {
-                let bytes = self.memory.fetch_bytes(self.registers.program_counter, 1);
-                self.registers.program_counter += 1; // Move PC forward
-                bytes
+    fn decode_execute(&mut self, opcode: u16){
+        match opcode {
+            0x00 => {
+                self.brk_implied();
+                (7, 2)
+            },
+
+            0x01 => {
+                let value = self.memory.fetch_absolute(self.registers.program_counter+1);
+                self.ora_indirect_x(value);
+                (6,2)
+            },
+
+            0x05 => {
+                let value = self.memory.fetch_absolute(self.registers.program_counter+1);
+                self.ora_zero_page(value);
+                (3,2)
             }
-            AddressingMode::ZeroPage => {
-                let address = self.memory.fetch_bytes(self.registers.program_counter, 1)[0] as u16;
-                let bytes = self.memory.fetch_bytes(address, 1);
-                self.registers.program_counter += 1; // Move PC forward
-                bytes
-            }
-            AddressingMode::Absolute => {
-                let address = self.memory.fetch_bytes(self.registers.program_counter, 2);
-                let address = u16::from_le_bytes([address[0], address[1]]);
-                self.registers.program_counter += 2; // Move PC forward
-                self.memory.fetch_bytes(address, 1)
-            }
-            _ => vec![], 
+
+            0x29 => {
+                let value = self.memory.fetch_absolute(self.registers.program_counter+1);
+                self.and_immediate(value);
+                self.registers.program_counter += 2;
+            },
+            _ => println!("INVALID OPCODE!")
         }
+
     }
+
 }

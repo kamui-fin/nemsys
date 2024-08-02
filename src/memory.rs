@@ -120,4 +120,17 @@ impl Memory {
             + index_y as u16;
         self.store_absolute(addr as u16, value);
     }
+
+    /*
+     * Returns count number of bytes starting from address in memory
+     * 
+     * Parameters: address to start from, count of bytes to return
+     * Return: vector of bytes
+     */
+    pub(crate) fn fetch_bytes(&self, address: u16, count: usize) -> Vec<u8> {
+
+        (0..count)
+        .map(|i| self.buffer[(address as usize + i) % 65536]) 
+        .collect()
+    }
 }

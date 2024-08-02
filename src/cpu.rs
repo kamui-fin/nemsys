@@ -5,6 +5,19 @@ pub struct Cpu {
     pub registers: registers::Registers,
 }
 
+enum AddressingMode {
+    Immediate,
+    ZeroPage,
+    ZeroPageX,
+    ZeroPageY,
+    Absolute,
+    AbsoluteX,
+    AbsoluteY,
+    Indirect,
+    IndexedIndirect,
+    IndirectIndexed,
+}
+
 impl Cpu {
     pub fn new() -> Self {
         Self {
@@ -1767,5 +1780,34 @@ impl Cpu {
         // Combine high and low bytes to form the full PC value
         let pc = (pc_high << 8) | pc_low;
         self.registers.program_counter = pc;
+    }
+
+    /*
+     * Decoder for instructions
+     * 
+     * Parameters: addressing mode
+     * Return: the number of bytes based on addressing mode
+     */
+    fn decoder(&mut self, mode: AddressingMode) -> Vec<u8> {
+        match mode {
+            AddressingMode::Immediate => {
+                let bytes = self.memory.fetch_bytes(self.registers.program_counter, 1);
+                self.registers.program_counter += 1; // Move PC forward
+                bytes
+            }
+            AddressingMode::ZeroPage => {
+                let address = self.memory.fetch_bytes(self.registers.program_counter, 1)[0] as u16;
+                let bytes = self.memory.fetch_bytes(address, 1);
+                self.registers.program_counter += 1; // Move PC forward
+                bytes
+            }
+            AddressingMode::Absolute => {
+                let address = self.memory.fetch_bytes(self.registers.program_counter, 2);
+                let address = u16::from_le_bytes([address[0], address[1]]);
+                self.registers.program_counter += 2; // Move PC forward
+                self.memory.fetch_bytes(address, 1)
+            }
+            _ => vec![], 
+        }
     }
 }

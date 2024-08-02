@@ -5,6 +5,9 @@
 extern crate log;
 extern crate simplelog;
 
+use std::thread::sleep;
+use std::time::{Duration, SystemTime};
+
 use anyhow::Result;
 use cpu::Cpu;
 use memory::Memory;
@@ -29,12 +32,20 @@ fn main() -> Result<()> {
     mem.load_ines_rom("romtest/nestest.nes")?;
     cpu.init_pc();
 
-    // let running = true;
+    let start_time = SystemTime::now();
 
-    // while running {
-    //     // cpu.tick();
-    //     // sleep for a bit
-    // }
+    let target_period = (1.0 / (1.789773 * 1e6)) * 1e9;
+
+    let mut num_cycles = 0;
+
+    loop {
+        num_cycles += cpu.tick();
+        let actual_period = (start_time.elapsed().unwrap().as_nanos() as f64) / (num_cycles as f64);
+        let wait_time = Duration::from_nanos((target_period - actual_period) as u64);
+
+        sleep(wait_time);
+        break;
+    }
 
     Ok(())
 }

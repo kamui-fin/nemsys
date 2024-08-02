@@ -1768,4 +1768,11 @@ impl Cpu {
         let pc = (pc_high << 8) | pc_low;
         self.registers.program_counter = pc;
     }
+
+    pub fn tick(&mut self) -> u8 {
+        let opcode = self.memory.fetch_absolute(self.registers.program_counter);
+        let (cycles, bytes) = self.decode_execute(opcode);
+        self.registers.program_counter += bytes as u16;
+        cycles
+    }
 }

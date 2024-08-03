@@ -35,7 +35,7 @@ fn main() -> Result<()> {
 
     let target_period = (1.0 / (1.789773 * 1e6)) * 1e9;
 
-    let mut num_cycles = 0;
+    let mut num_cycles: usize = 0;
 
     loop {
         num_cycles += cpu.tick();

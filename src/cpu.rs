@@ -38,13 +38,13 @@ impl Cpu {
     fn stack_push(&mut self, val: u8) {
         let stack_addr = (((0x1 as u16) << 8) & 0b1111_1111) as u8 | self.registers.stack_pointer;
         self.memory.buffer[stack_addr as usize] = val;
-        self.registers.stack_pointer += 1;
+        self.registers.stack_pointer -= 1;
     }
 
     fn stack_pop(&mut self) -> u8 {
+        self.registers.stack_pointer += 1;
         let stack_addr = (((0x1 as u16) << 8) & 0b1111_1111) as u8 | self.registers.stack_pointer;
         let top = self.memory.buffer[stack_addr as usize];
-        self.registers.stack_pointer -= 1;
         top
     }
 
@@ -1825,7 +1825,7 @@ impl Cpu {
         4
     }
 
-    // Opcode: $9C
+    // Opcode: $8C
     // Cycles: 4
     fn sty_absolute(&mut self, address: u16) -> u8 {
         self.memory.store_absolute(address, self.registers.index_y);
@@ -2016,11 +2016,11 @@ impl Cpu {
      */
 
     fn brk_implied(&mut self) -> u8 {
-        let pc_high = (self.registers.program_counter >> 8) as u8;
+        let pc_high = ((self.registers.program_counter + 1) >> 8) as u8;
         self.stack_push(pc_high);
 
         // Push low byte
-        let pc_low = (self.registers.program_counter & 0xFF) as u8;
+        let pc_low = ((self.registers.program_counter + 1) & 0xFF) as u8;
         self.stack_push(pc_low);
         self.stack_push(self.registers.processor_status);
 
@@ -2068,6 +2068,24 @@ impl Cpu {
     }
 
     /*
+     *   RTS - Return from Subroutine
+     *   The RTS instruction is used at the end of a subroutine to return to the calling routine. It pulls the program counter (minus one) from the stack.
+     *
+     *   Opcode: $60
+     *   Cycles: 6
+     */
+
+    fn rts(&mut self) -> u8 {
+        let pc_low = self.stack_pop() as u16;
+        let pc_high = self.stack_pop() as u16;
+
+        let pc = (pc_high << 8) | pc_low;
+        self.registers.program_counter = pc;
+
+        6
+    }
+
+    /*
      * Maps opcodes to methods and is responsible for decoding & executing
      */
     fn decode_execute(&mut self, opcode: u8) -> (u8, u8) {
@@ -2101,6 +2119,15 @@ impl Cpu {
             }};
         }
 
+        macro_rules! handle_opcode_jump {
+            ($self:ident, $method:ident) => {{
+                let value = $self
+                    .memory
+                    .fetch_absolute($self.registers.program_counter + 1);
+                ($self.$method(value.into()), 0)
+            }};
+        }
+
         match opcode {
             0x00 => handle_opcode_zerobyte!(self, brk_implied),
             0x01 => handle_opcode_twobytes!(self, ora_indirect_x),
@@ -2119,7 +2146,7 @@ impl Cpu {
             0x19 => handle_opcode_threebytes!(self, ora_absolute_y),
             0x1D => handle_opcode_threebytes!(self, ora_absolute_x),
             0x1E => handle_opcode_threebytes!(self, asl_absolute_x),
-            0x20 => handle_opcode_threebytes!(self, jsr),
+            0x20 => handle_opcode_jump!(self, jsr),
             0x21 => handle_opcode_twobytes!(self, and_indirect_x),
             0x24 => handle_opcode_twobytes!(self, bit_zero_page),
             0x25 => handle_opcode_twobytes!(self, and_zero_page),
@@ -2138,14 +2165,14 @@ impl Cpu {
             0x39 => handle_opcode_threebytes!(self, and_absolute_y),
             0x3D => handle_opcode_threebytes!(self, and_absolute_x),
             0x3E => handle_opcode_threebytes!(self, rol_absolute_x),
-            0x40 => handle_opcode_onebyte!(self, rti_implied),
+            0x40 => handle_opcode_zerobyte!(self, rti_implied),
             0x41 => handle_opcode_twobytes!(self, eor_indirect_x),
             0x45 => handle_opcode_twobytes!(self, eor_zero_page),
             0x46 => handle_opcode_twobytes!(self, lsr_zero_page),
             0x48 => handle_opcode_onebyte!(self, pha),
             0x49 => handle_opcode_twobytes!(self, eor_immediate),
             0x4A => handle_opcode_onebyte!(self, lsr_accumulator),
-            0x4C => handle_opcode_threebytes!(self, jmp_absolute),
+            0x4C => handle_opcode_jump!(self, jmp_absolute),
             0x4D => handle_opcode_threebytes!(self, eor_absolute),
             0x4E => handle_opcode_threebytes!(self, lsr_absolute),
             0x50 => handle_opcode_twobytes!(self, bvc),
@@ -2156,13 +2183,14 @@ impl Cpu {
             0x59 => handle_opcode_threebytes!(self, eor_absolute_y),
             0x5D => handle_opcode_threebytes!(self, eor_absolute_x),
             0x5E => handle_opcode_threebytes!(self, lsr_absolute_x),
+            0x60 => handle_opcode_zerobyte!(self, rts),
             0x61 => handle_opcode_twobytes!(self, adc_indirect_x),
             0x65 => handle_opcode_twobytes!(self, adc_zero_page),
             0x66 => handle_opcode_twobytes!(self, ror_zero_page),
             0x68 => handle_opcode_onebyte!(self, pla),
             0x69 => handle_opcode_twobytes!(self, adc_immediate),
             0x6A => handle_opcode_onebyte!(self, ror_accumulator),
-            0x6C => handle_opcode_threebytes!(self, jmp_indirect),
+            0x6C => handle_opcode_jump!(self, jmp_indirect),
             0x6D => handle_opcode_threebytes!(self, adc_absolute),
             0x6E => handle_opcode_threebytes!(self, ror_absolute),
             0x70 => handle_opcode_twobytes!(self, bvs),
@@ -2179,6 +2207,7 @@ impl Cpu {
             0x86 => handle_opcode_twobytes!(self, stx_zero_page),
             0x88 => handle_opcode_onebyte!(self, dey_implied),
             0x8A => handle_opcode_onebyte!(self, txa),
+            0x8C => handle_opcode_threebytes!(self, sty_absolute),
             0x8D => handle_opcode_threebytes!(self, sta_absolute),
             0x8E => handle_opcode_threebytes!(self, stx_absolute),
             0x90 => handle_opcode_twobytes!(self, bcc),
@@ -2189,12 +2218,11 @@ impl Cpu {
             0x98 => handle_opcode_onebyte!(self, tya),
             0x99 => handle_opcode_threebytes!(self, sta_absolute_y),
             0x9A => handle_opcode_onebyte!(self, txs),
-            0x9C => handle_opcode_threebytes!(self, sty_absolute),
             0x9D => handle_opcode_threebytes!(self, sta_absolute_x),
             0xA0 => handle_opcode_twobytes!(self, ldy_immediate),
             0xA1 => handle_opcode_twobytes!(self, lda_indirect_x),
             0xA2 => handle_opcode_twobytes!(self, ldx_immediate),
-            0xA3 => handle_opcode_twobytes!(self, ldy_zero_page),
+            0xA4 => handle_opcode_twobytes!(self, ldy_zero_page),
             0xA5 => handle_opcode_twobytes!(self, lda_zero_page),
             0xA6 => handle_opcode_twobytes!(self, ldx_zero_page),
             0xA8 => handle_opcode_onebyte!(self, tay),
@@ -2229,10 +2257,10 @@ impl Cpu {
             0xD1 => handle_opcode_twobytes!(self, cmp_indirect_y),
             0xD5 => handle_opcode_twobytes!(self, cmp_zero_page_x),
             0xD6 => handle_opcode_twobytes!(self, dnc_zero_page_x),
-            0xDE => handle_opcode_threebytes!(self, dec_absolute_x),
             0xD8 => handle_opcode_onebyte!(self, cld),
             0xD9 => handle_opcode_threebytes!(self, cmp_absolute_y),
             0xDD => handle_opcode_threebytes!(self, cmp_absolute_x),
+            0xDE => handle_opcode_threebytes!(self, dec_absolute_x),
             0xE0 => handle_opcode_twobytes!(self, cpx_immediate),
             0xE1 => handle_opcode_twobytes!(self, sbc_indirect_x),
             0xE4 => handle_opcode_twobytes!(self, cpx_zero_page),
@@ -2248,6 +2276,7 @@ impl Cpu {
             0xF1 => handle_opcode_twobytes!(self, sbc_indirect_y),
             0xF5 => handle_opcode_twobytes!(self, sbc_zero_page_x),
             0xF6 => handle_opcode_twobytes!(self, inc_zero_page_x),
+            0xF8 => handle_opcode_onebyte!(self, nop_implied), // decimal mode stub
             0xF9 => handle_opcode_threebytes!(self, sbc_absolute_y),
             0xFD => handle_opcode_threebytes!(self, sbc_absolute_x),
             0xFE => handle_opcode_threebytes!(self, inc_absolute_x),
@@ -2255,15 +2284,15 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self) -> u8 {
+    pub fn tick(&mut self) -> usize {
         let opcode = self.memory.fetch_absolute(self.registers.program_counter);
-        info!("Fetched OPCODE {}", opcode);
+        info!("Fetched OPCODE {:x}", opcode);
         let (cycles, bytes) = self.decode_execute(opcode);
         info!(
             "OPCODE 0x{:x} executed {} cycles... Moving pc by {} bytes",
             opcode, cycles, bytes
         );
         self.registers.program_counter += bytes as u16;
-        cycles
+        cycles as usize
     }
 }

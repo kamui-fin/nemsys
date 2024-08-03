@@ -26,7 +26,7 @@ impl Registers {
     pub fn new() -> Registers {
         Self {
             program_counter: 0, // will be initialized later after loading ROM
-            stack_pointer: 0x00,
+            stack_pointer: 0xFF,
             accumulator: 0,
             index_x: 0,
             index_y: 0,

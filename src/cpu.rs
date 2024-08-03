@@ -1396,9 +1396,9 @@ impl Cpu {
      *   Opcode: $D8
      *   Cycles: 2
      */
-    /* fn cld(&mut self) -> u8 {
-        self.registers.unset_decimal_mode()
-    } */
+    fn cld(&mut self) -> u8 {
+        self.nop_implied()
+    }
 
     /*
      *   CLI - Clear Interrupt Disable
@@ -1979,7 +1979,7 @@ impl Cpu {
 
     /*
      *   DEX - Decrement X Register
-     *   Increment the value at the X Register
+     *   Decrement the value at the X Register
      *
      *   Opcode: $CA
      *   Cycles: 2
@@ -2226,6 +2226,7 @@ impl Cpu {
             0xD1 => handle_opcode_twobytes!(self, cmp_indirect_y),
             0xD5 => handle_opcode_twobytes!(self, dnc_zero_page_x),
             0xDE => handle_opcode_threebytes!(self, dec_absolute_x),
+            0xD8 => handle_opcode_onebyte!(self, cld),
             0xD9 => handle_opcode_threebytes!(self, cmp_absolute_y),
             0xDD => handle_opcode_threebytes!(self, cmp_absolute_x),
             0xE0 => handle_opcode_twobytes!(self, cpx_immediate),
@@ -2251,6 +2252,10 @@ impl Cpu {
     pub fn tick(&mut self) -> u8 {
         let opcode = self.memory.fetch_absolute(self.registers.program_counter);
         let (cycles, bytes) = self.decode_execute(opcode);
+        info!(
+            "OPCODE 0x{:x} executed {} cycles... Moving pc by {} bytes",
+            opcode, cycles, bytes
+        );
         self.registers.program_counter += bytes as u16;
         cycles
     }

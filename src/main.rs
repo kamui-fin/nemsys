@@ -10,7 +10,6 @@ use std::time::{Duration, SystemTime};
 
 use anyhow::Result;
 use cpu::Cpu;
-use memory::Memory;
 use simplelog::*;
 
 mod cpu;

@@ -1,5 +1,4 @@
 use anyhow::Result;
-use simplelog::*;
 use std::{fs::File, io::Read};
 
 // Memory abstraction layer, acts as the data and address bus
@@ -111,19 +110,5 @@ impl Memory {
             + self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256
             + index_y as u16;
         self.fetch_absolute(addr)
-    }
-
-    pub(crate) fn store_indirect_y(&mut self, addr_lower_byte: u8, index_y: u8, value: u8) {
-        // val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)
-        let addr = self.fetch_zero_page(addr_lower_byte) as u16
-            + self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256
-            + index_y as u16;
-        self.store_absolute(addr as u16, value);
-    }
-
-    pub(crate) fn fetch_bytes(&self, address: u16) -> u16 {
-        let lower = self.buffer[(address) as usize];
-        let upper = self.buffer[(address + 1) as usize];
-        ((upper as u16) << 8) | lower as u16
     }
 }

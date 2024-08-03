@@ -39,7 +39,7 @@ impl Registers {
      */
 
     fn unset_nth_status_bit(&mut self, n: u8) {
-        self.processor_status &= !(1 << (n - 1));
+        self.processor_status &= !(1 << n);
     }
 
     pub fn unset_carry(&mut self) {

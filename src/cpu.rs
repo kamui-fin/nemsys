@@ -5,8 +5,6 @@ pub struct Cpu {
     pub registers: registers::Registers,
 }
 
-
-
 impl Cpu {
     pub fn new() -> Self {
         Self {
@@ -118,6 +116,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         self.adc_immediate(value);
+
+        4
     }
 
     // Opcode: $79
@@ -149,6 +149,8 @@ impl Cpu {
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
         self.adc_immediate(value);
+
+        5
     }
 
     /*
@@ -313,6 +315,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
         self.cmp_immediate(value);
+
+        4
     }
 
     // Opcode: $C1
@@ -332,7 +336,9 @@ impl Cpu {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
-        self.cmp_immediate(value)
+        self.cmp_immediate(value);
+
+        5
     }
 
     /*
@@ -798,6 +804,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         self.lda_immediate(value);
+
+        4
     }
 
     // Opcode: $B9
@@ -807,6 +815,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
         self.lda_immediate(value);
+
+        4
     }
 
     // Opcode: $A1
@@ -863,6 +873,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
         self.ldx_immediate(value);
+
+        4
     }
 
     // Opcode: $A6
@@ -917,6 +929,8 @@ impl Cpu {
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         self.ldy_immediate(value);
+
+        4
     }
 
     // Opcode: $A4
@@ -1084,6 +1098,8 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_y);
 
         self.and_immediate(value);
+
+        4
     }
 
     // Opcode: $21
@@ -1106,6 +1122,8 @@ impl Cpu {
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
 
         self.and_immediate(value);
+
+        5
     }
 
     /*
@@ -1163,6 +1181,8 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_x);
 
         self.eor_immediate(value);
+
+        4
     }
 
     // Opcode: $59
@@ -1173,6 +1193,8 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_y);
 
         self.eor_immediate(value);
+
+        4
     }
 
     // Opcode: $41
@@ -1195,6 +1217,8 @@ impl Cpu {
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
 
         self.eor_immediate(value);
+
+        5
     }
 
     /*
@@ -1252,6 +1276,8 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_x);
 
         self.ora_immediate(value);
+
+        4
     }
 
     // Opcode: $19
@@ -1262,6 +1288,8 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_y);
 
         self.ora_immediate(value);
+
+        4
     }
 
     // Opcode: $01
@@ -1284,6 +1312,8 @@ impl Cpu {
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
 
         self.ora_immediate(value);
+
+        5
     }
 
     /*
@@ -2044,29 +2074,28 @@ impl Cpu {
      * Returns the
      */
     fn decode_execute(&mut self, opcode: u8) -> (u8, u8) {
-
         macro_rules! handle_opcode_onebyte {
-            ($self:ident, $method:ident) => {
-                {($self.$method(), 1)}
-            };
+            ($self:ident, $method:ident) => {{
+                ($self.$method(), 1)
+            }};
         }
-        
+
         macro_rules! handle_opcode_twobytes {
-            ($self:ident, $method:ident) => {
-                {
-                    let value = $self.memory.fetch_absolute($self.registers.program_counter + 1);
-                    ($self.$method(value), 2)
-                }
-            };
+            ($self:ident, $method:ident) => {{
+                let value = $self
+                    .memory
+                    .fetch_absolute($self.registers.program_counter + 1);
+                ($self.$method(value), 2)
+            }};
         }
-        
+
         macro_rules! handle_opcode_threebytes {
-            ($self:ident, $method:ident) => {
-                {
-                    let value = $self.memory.fetch_absolute($self.registers.program_counter + 1);
-                    ($self.$method(value), 3)
-                }
-            };
+            ($self:ident, $method:ident) => {{
+                let value = $self
+                    .memory
+                    .fetch_absolute($self.registers.program_counter + 1);
+                ($self.$method(value.into()), 3)
+            }};
         }
 
         match opcode {
@@ -2079,7 +2108,6 @@ impl Cpu {
             0x0A => handle_opcode_onebyte!(self, asl_accumulator),
             0x0D => handle_opcode_threebytes!(self, ora_absolute),
             0x0E => handle_opcode_threebytes!(self, asl_absolute),
-
             0x10 => handle_opcode_twobytes!(self, bpl),
             0x11 => handle_opcode_twobytes!(self, ora_indirect_y),
             0x15 => handle_opcode_twobytes!(self, ora_zero_page_x),
@@ -2088,7 +2116,6 @@ impl Cpu {
             0x19 => handle_opcode_threebytes!(self, ora_absolute_y),
             0x1D => handle_opcode_threebytes!(self, ora_absolute_x),
             0x1E => handle_opcode_threebytes!(self, asl_absolute_x),
-
             0x20 => handle_opcode_threebytes!(self, jsr),
             0x21 => handle_opcode_twobytes!(self, and_indirect_x),
             0x24 => handle_opcode_twobytes!(self, bit_zero_page),
@@ -2100,7 +2127,6 @@ impl Cpu {
             0x2C => handle_opcode_threebytes!(self, bit_absolute),
             0x2D => handle_opcode_threebytes!(self, and_absolute),
             0x2E => handle_opcode_threebytes!(self, rol_absolute),
-
             0x30 => handle_opcode_twobytes!(self, bmi),
             0x31 => handle_opcode_twobytes!(self, and_indirect_y),
             0x35 => handle_opcode_twobytes!(self, and_zero_page_x),
@@ -2109,7 +2135,6 @@ impl Cpu {
             0x39 => handle_opcode_threebytes!(self, and_absolute_y),
             0x3D => handle_opcode_threebytes!(self, and_absolute_x),
             0x3E => handle_opcode_threebytes!(self, rol_absolute_x),
-
             0x40 => handle_opcode_onebyte!(self, nop_implied),
             0x41 => handle_opcode_twobytes!(self, eor_indirect_x),
             0x45 => handle_opcode_twobytes!(self, eor_zero_page),
@@ -2121,7 +2146,6 @@ impl Cpu {
             0x4C => handle_opcode_threebytes!(self, jmp_absolute),
             0x4D => handle_opcode_threebytes!(self, eor_absolute),
             0x4D => handle_opcode_threebytes!(self, lsr_absolute),
-
             0x50 => handle_opcode_twobytes!(self, bvc),
             0x51 => handle_opcode_twobytes!(self, eor_indirect_y),
             0x55 => handle_opcode_twobytes!(self, eor_zero_page_x),
@@ -2130,7 +2154,6 @@ impl Cpu {
             0x59 => handle_opcode_threebytes!(self, eor_absolute_y),
             0x5D => handle_opcode_threebytes!(self, eor_absolute_x),
             0x5E => handle_opcode_threebytes!(self, lsr_absolute_x),
-            
             0x61 => handle_opcode_twobytes!(self, adc_indirect_x),
             0x65 => handle_opcode_twobytes!(self, adc_zero_page),
             0x66 => handle_opcode_twobytes!(self, ror_zero_page),
@@ -2140,7 +2163,6 @@ impl Cpu {
             0x6C => handle_opcode_threebytes!(self, jmp_indirect),
             0x6D => handle_opcode_threebytes!(self, adc_absolute),
             0x6E => handle_opcode_threebytes!(self, ror_absolute),
-
             0x70 => handle_opcode_twobytes!(self, bvs),
             0x71 => handle_opcode_twobytes!(self, adc_indirect_y),
             0x75 => handle_opcode_twobytes!(self, adc_zero_page_x),
@@ -2149,7 +2171,6 @@ impl Cpu {
             0x79 => handle_opcode_threebytes!(self, adc_absolute),
             0x7D => handle_opcode_threebytes!(self, adc_absolute_x),
             0x7E => handle_opcode_threebytes!(self, ror_absolute_x),
-
             0x81 => handle_opcode_twobytes!(self, sta_indirect_x),
             0x84 => handle_opcode_twobytes!(self, sty_zero_page),
             0x85 => handle_opcode_twobytes!(self, sta_zero_page),
@@ -2158,7 +2179,6 @@ impl Cpu {
             0x88 => handle_opcode_onebyte!(self, txa),
             0x8D => handle_opcode_threebytes!(self, sta_absolute),
             0x8E => handle_opcode_threebytes!(self, stx_absolute),
-
             0x90 => handle_opcode_twobytes!(self, bcc),
             0x91 => handle_opcode_twobytes!(self, sta_indirect_y),
             0x94 => handle_opcode_twobytes!(self, sty_zero_page_x),
@@ -2169,7 +2189,6 @@ impl Cpu {
             0x9A => handle_opcode_onebyte!(self, txs),
             0x9C => handle_opcode_threebytes!(self, sty_absolute),
             0x9D => handle_opcode_threebytes!(self, sta_absolute_x),
-
             0xA0 => handle_opcode_twobytes!(self, ldy_immediate),
             0xA1 => handle_opcode_twobytes!(self, lda_indirect_x),
             0xA2 => handle_opcode_twobytes!(self, ldx_immediate),
@@ -2182,7 +2201,6 @@ impl Cpu {
             0xAC => handle_opcode_threebytes!(self, ldy_absolute),
             0xAD => handle_opcode_threebytes!(self, lda_absolute),
             0xAE => handle_opcode_threebytes!(self, ldx_absolute),
-
             0xB0 => handle_opcode_twobytes!(self, bcs),
             0xB1 => handle_opcode_twobytes!(self, lda_indirect_y),
             0xB4 => handle_opcode_twobytes!(self, ldy_zero_page_x),
@@ -2194,7 +2212,6 @@ impl Cpu {
             0xBC => handle_opcode_threebytes!(self, ldy_absolute_x),
             0xBD => handle_opcode_threebytes!(self, lda_absolute_x),
             0xBE => handle_opcode_threebytes!(self, ldx_absolute_y),
-
             0xC0 => handle_opcode_twobytes!(self, cpy_immediate),
             0xC1 => handle_opcode_twobytes!(self, cmp_indirect_x),
             0xC4 => handle_opcode_twobytes!(self, cpy_zero_page),
@@ -2205,14 +2222,12 @@ impl Cpu {
             0xCA => handle_opcode_onebyte!(self, dex_implied),
             0xCC => handle_opcode_threebytes!(self, cpy_absolute),
             0xCE => handle_opcode_threebytes!(self, dec_absolute),
-
             0xD0 => handle_opcode_twobytes!(self, bne),
             0xD1 => handle_opcode_twobytes!(self, cmp_indirect_y),
             0xD5 => handle_opcode_twobytes!(self, dnc_zero_page_x),
             0xDE => handle_opcode_threebytes!(self, dec_absolute_x),
             0xD9 => handle_opcode_threebytes!(self, cmp_absolute_y),
             0xDD => handle_opcode_threebytes!(self, cmp_absolute_x),
-
             0xE0 => handle_opcode_twobytes!(self, cpx_immediate),
             0xE1 => handle_opcode_twobytes!(self, sbc_indirect_x),
             0xE4 => handle_opcode_twobytes!(self, cpx_zero_page),
@@ -2223,15 +2238,13 @@ impl Cpu {
             0xEC => handle_opcode_threebytes!(self, cpx_absolute),
             0xED => handle_opcode_threebytes!(self, sbc_absolute),
             0xEE => handle_opcode_threebytes!(self, inc_absolute),
-
             0xF0 => handle_opcode_twobytes!(self, beq),
             0xF1 => handle_opcode_twobytes!(self, sbc_indirect_y),
             0xF6 => handle_opcode_twobytes!(self, inc_zero_page_x),
             0xF9 => handle_opcode_threebytes!(self, sbc_absolute_y),
             0xFD => handle_opcode_threebytes!(self, sbc_absolute_x),
             0xFE => handle_opcode_threebytes!(self, inc_absolute_x),
-
-            _ => (0,0),
+            _ => (0, 0),
         }
     }
 

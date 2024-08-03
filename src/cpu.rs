@@ -55,7 +55,7 @@ impl Cpu {
 
     // Opcode: $69
     // 2 cycles
-    fn adc_immediate(&mut self, value: u8) {
+    fn adc_immediate(&mut self, value: u8) -> u8 {
         // check if both are positive or if both are negative
         let same_sign = (value & 0b1000_0000) == (self.registers.accumulator & 0b1000_0000);
 
@@ -76,66 +76,77 @@ impl Cpu {
             self.registers.accumulator = sum as u8;
         }
 
-        self.update_zero_negative_flags(value)
+        self.update_zero_negative_flags(value);
+        2
     }
 
     // Opcode: $65
     // 3 cycles
-    fn adc_zero_page(&mut self, addr_lower_byte: u8) {
+    fn adc_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
-        self.adc_immediate(value)
+        self.adc_immediate(value);
+
+        3
     }
 
     // Opcode: $75
     // 4 cycles
-    fn adc_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn adc_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
-        self.adc_immediate(value)
+        self.adc_immediate(value);
+
+        4
     }
 
     // Opcode: $6D
     // 4 cycles
-    fn adc_absolute(&mut self, address: u16) {
+    fn adc_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
-        self.adc_immediate(value)
+        self.adc_immediate(value);
+
+        4
     }
 
     // Opcode: $7D
     // 4 (+1 if page crossed) cycles
-    fn adc_absolute_x(&mut self, address: u16) {
+    fn adc_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
-        self.adc_immediate(value)
+        self.adc_immediate(value);
     }
 
     // Opcode: $79
     // 4 (+1 if page crossed) cycles
-    fn adc_absolute_y(&mut self, address: u16) {
+    fn adc_absolute_y(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
-        self.adc_immediate(value)
+        self.adc_immediate(value);
+
+        4
     }
 
     // Opcode: $61
     // 6 cycles
-    fn adc_indirect_x(&mut self, addr_lower_byte: u8) {
+    fn adc_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
-        self.adc_immediate(value)
+        self.adc_immediate(value);
+
+        6
     }
 
     // Opcode: $71
     // 5 (+1 if page crossed) cycles
-    fn adc_indirect_y(&mut self, addr_lower_byte: u8) {
+    fn adc_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
-        self.adc_immediate(value)
+        self.adc_immediate(value);
     }
 
     /*
@@ -145,36 +156,44 @@ impl Cpu {
 
     // Opcode: $E9
     // 2 cycles
-    fn sbc_immediate(&mut self, value: u8) {
-        self.adc_immediate((value as i8 * -1i8) as u8) // twos complement
+    fn sbc_immediate(&mut self, value: u8) -> u8 {
+        self.adc_immediate((value as i8 * -1i8) as u8); // twos complement
+
+        2
     }
 
     // Opcode: $E5
     // 3 cycles
-    fn sbc_zero_page(&mut self, addr_lower_byte: u8) {
+    fn sbc_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
-        self.sbc_immediate(value)
+        self.sbc_immediate(value);
+
+        3
     }
 
     // Opcode: $F5
     // 4 cycles
-    fn sbc_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn sbc_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
-        self.sbc_immediate(value)
+        self.sbc_immediate(value);
+
+        4
     }
 
     // Opcode: $ED
     // 4 cycles
-    fn sbc_absolute(&mut self, address: u16) {
+    fn sbc_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
-        self.sbc_immediate(value)
+        self.sbc_immediate(value);
+
+        4
     }
 
     // Opcode: $FD
     // 4 (+1 if page crossed) cycles
-    fn sbc_absolute_x(&mut self, address: u16) {
+    fn sbc_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
@@ -183,29 +202,35 @@ impl Cpu {
 
     // Opcode: $F9
     // 4 (+1 if page crossed) cycles
-    fn sbc_absolute_y(&mut self, address: u16) {
+    fn sbc_absolute_y(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
-        self.sbc_immediate(value)
+        self.sbc_immediate(value);
+
+        4
     }
 
     // Opcode: $E1
     // 6 cycles
-    fn sbc_indirect_x(&mut self, addr_lower_byte: u8) {
+    fn sbc_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
-        self.sbc_immediate(value)
+        self.sbc_immediate(value);
+
+        6
     }
 
     // Opcode: $F1
     // 5 (+1 if page crossed) cycles
-    fn sbc_indirect_y(&mut self, addr_lower_byte: u8) {
+    fn sbc_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
-        self.sbc_immediate(value)
+        self.sbc_immediate(value);
+
+        5
     }
 
     /*
@@ -215,7 +240,7 @@ impl Cpu {
 
     // Opcode: $E9
     // 2 cycles
-    fn cmp_immediate(&mut self, value: u8) {
+    fn cmp_immediate(&mut self, value: u8) -> u8 {
         if self.registers.accumulator == value {
             self.registers.set_zero();
         } else {
@@ -235,61 +260,73 @@ impl Cpu {
         } else {
             self.registers.unset_neg();
         }
+
+        2
     }
 
     // Opcode: $E5
     // 3 cycles
-    fn cmp_zero_page(&mut self, addr_lower_byte: u8) {
+    fn cmp_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
-        self.cmp_immediate(value)
+        self.cmp_immediate(value);
+
+        3
     }
 
     // Opcode: $F5
     // 4 cycles
-    fn cmp_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn cmp_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
-        self.cmp_immediate(value)
+        self.cmp_immediate(value);
+
+        4
     }
 
     // Opcode: $ED
     // 4 cycles
-    fn cmp_absolute(&mut self, address: u16) {
+    fn cmp_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
-        self.cmp_immediate(value)
+        self.cmp_immediate(value);
+
+        4
     }
 
     // Opcode: $FD
     // 4 (+1 if page crossed) cycles
-    fn cmp_absolute_x(&mut self, address: u16) {
+    fn cmp_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
-        self.cmp_immediate(value)
+        self.cmp_immediate(value);
+
+        4
     }
 
     // Opcode: $F9
     // 4 (+1 if page crossed) cycles
-    fn cmp_absolute_y(&mut self, address: u16) {
+    fn cmp_absolute_y(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
-        self.cmp_immediate(value)
+        self.cmp_immediate(value);
     }
 
     // Opcode: $E1
     // 6 cycles
-    fn cmp_indirect_x(&mut self, addr_lower_byte: u8) {
+    fn cmp_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
-        self.cmp_immediate(value)
+        self.cmp_immediate(value);
+
+        6
     }
 
     // Opcode: $F1
     // 5 (+1 if page crossed) cycles
-    fn cmp_indirect_y(&mut self, addr_lower_byte: u8) {
+    fn cmp_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
@@ -303,7 +340,7 @@ impl Cpu {
 
     // Opcode: $E0
     // 2 cycles
-    fn cpx_immediate(&mut self, value: u8) {
+    fn cpx_immediate(&mut self, value: u8) -> u8 {
         if self.registers.index_x == value {
             self.registers.set_zero()
         } else {
@@ -323,20 +360,26 @@ impl Cpu {
         } else {
             self.registers.unset_neg()
         }
+
+        2
     }
 
     // Opcode: $E4
     // 3 cycles
-    fn cpx_zero_page(&mut self, addr_lower_byte: u8) {
+    fn cpx_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
-        self.cpx_immediate(value)
+        self.cpx_immediate(value);
+
+        3
     }
 
     // Opcode: $EC
     // 4 cycles
-    fn cpx_absolute(&mut self, address: u16) {
+    fn cpx_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
-        self.cpx_immediate(value)
+        self.cpx_immediate(value);
+
+        4
     }
 
     /*
@@ -346,7 +389,7 @@ impl Cpu {
 
     // Opcode: $C0
     // 2 cycles
-    fn cpy_immediate(&mut self, value: u8) {
+    fn cpy_immediate(&mut self, value: u8) -> u8 {
         if self.registers.index_y == value {
             self.registers.set_zero()
         } else {
@@ -365,20 +408,26 @@ impl Cpu {
         } else {
             self.registers.unset_neg()
         }
+
+        2
     }
 
     // Opcode: $C4
     // 3 cycles
-    fn cpy_zero_page(&mut self, addr_lower_byte: u8) {
+    fn cpy_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
-        self.cpy_immediate(value)
+        self.cpy_immediate(value);
+
+        3
     }
 
     // Opcode: $CC
     // 4 cycles
-    fn cpy_absolute(&mut self, address: u16) {
+    fn cpy_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
-        self.cpy_immediate(value)
+        self.cpy_immediate(value);
+
+        4
     }
 
     /*
@@ -405,47 +454,57 @@ impl Cpu {
 
     // Opcode: $0A
     // 2 cycles
-    fn asl_accumulator(&mut self) {
+    fn asl_accumulator(&mut self) -> u8 {
         let new_accum = self.asl_immediate(self.registers.accumulator);
         self.registers.accumulator = new_accum;
+
+        2
     }
 
     // Opcode: $06
     // 5 cycles
-    fn asl_zero_page(&mut self, addr_lower_byte: u8) {
+    fn asl_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
         let value = self.asl_immediate(value);
         self.memory.store_zero_page(addr_lower_byte, value);
+
+        5
     }
 
     // Opcode: $16
     // 6 cycles
-    fn asl_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn asl_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.asl_immediate(value);
         self.memory
             .store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+
+        6
     }
 
     // Opcode: $0E
     // 6 cycles
-    fn asl_absolute(&mut self, address: u16) {
+    fn asl_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
         let value = self.asl_immediate(value);
         self.memory.store_absolute(address, value);
+
+        6
     }
 
     // Opcode: $1E
     // 7 cycles
-    fn asl_absolute_x(&mut self, address: u16) {
+    fn asl_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.asl_immediate(value);
         self.memory
             .store_absolute_x(address, self.registers.index_x, value);
+
+        7
     }
 
     /*
@@ -478,47 +537,57 @@ impl Cpu {
 
     // Opcode: $4A
     // 2 cycles
-    fn lsr_accumulator(&mut self) {
+    fn lsr_accumulator(&mut self) -> u8 {
         let new_accum = self.lsr_immediate(self.registers.accumulator);
         self.registers.accumulator = new_accum;
+
+        2
     }
 
     // Opcode: $46
     // 5 cycles
-    fn lsr_zero_page(&mut self, addr_lower_byte: u8) {
+    fn lsr_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
         let value = self.lsr_immediate(value);
         self.memory.store_zero_page(addr_lower_byte, value);
+
+        5
     }
 
     // Opcode: $56
     // 6 cycles
-    fn lsr_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn lsr_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.lsr_immediate(value);
         self.memory
             .store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+
+        6
     }
 
     // Opcode: $4E
     // 6 cycles
-    fn lsr_absolute(&mut self, address: u16) {
+    fn lsr_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
         let value = self.lsr_immediate(value);
         self.memory.store_absolute(address, value);
+
+        6
     }
 
     // Opcode: $5E
     // 7 cycles
-    fn lsr_absolute_x(&mut self, address: u16) {
+    fn lsr_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.lsr_immediate(value);
         self.memory
             .store_absolute_x(address, self.registers.index_x, value);
+
+        7
     }
 
     /*
@@ -545,46 +614,56 @@ impl Cpu {
 
     // Opcode: $2A
     // 2 cycles
-    fn rol_accumulator(&mut self) {
+    fn rol_accumulator(&mut self) -> u8 {
         self.registers.accumulator = self.rol_immediate(self.registers.accumulator);
+
+        2
     }
 
     // Opcode: $26
     // 5 cycles
-    fn rol_zero_page(&mut self, addr_lower_byte: u8) {
+    fn rol_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
         let value = self.rol_immediate(value);
         self.memory.store_zero_page(addr_lower_byte, value);
+
+        5
     }
 
     // Opcode: $36
     // 6 cycles
-    fn rol_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn rol_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.rol_immediate(value);
         self.memory
             .store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+
+        6
     }
 
     // Opcode: $2E
     // 6 cycles
-    fn rol_absolute(&mut self, address: u16) {
+    fn rol_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
         let value = self.rol_immediate(value);
         self.memory.store_absolute(address, value);
+
+        6
     }
 
     // Opcode: $3E
     // 7 cycles
-    fn rol_absolute_x(&mut self, address: u16) {
+    fn rol_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.rol_immediate(value);
         self.memory
             .store_absolute_x(address, self.registers.index_x, value);
+
+        7
     }
 
     /*
@@ -614,46 +693,56 @@ impl Cpu {
 
     // Opcode: $6A
     // 2 cycles
-    fn ror_accumulator(&mut self) {
+    fn ror_accumulator(&mut self) -> u8 {
         self.registers.accumulator = self.ror_immediate(self.registers.accumulator);
+
+        2
     }
 
     // Opcode: $66
     // 5 cycles
-    fn ror_zero_page(&mut self, addr_lower_byte: u8) {
+    fn ror_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
         let value = self.ror_immediate(value);
         self.memory.store_zero_page(addr_lower_byte, value);
+
+        5
     }
 
     // Opcode: $76
     // 6 cycles
-    fn ror_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn ror_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
         let value = self.ror_immediate(value);
         self.memory
             .store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+
+        6
     }
 
     // Opcode: $6E
     // 6 cycles
-    fn ror_absolute(&mut self, address: u16) {
+    fn ror_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
         let value = self.ror_immediate(value);
         self.memory.store_absolute(address, value);
+
+        6
     }
 
     // Opcode: $7E
     // 7 cycles
-    fn ror_absolute_x(&mut self, address: u16) {
+    fn ror_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
         let value = self.ror_immediate(value);
         self.memory
             .store_absolute_x(address, self.registers.index_x, value);
+
+        7
     }
 
     /*
@@ -663,69 +752,81 @@ impl Cpu {
 
     // Opcode: $A9
     // 2 cycles
-    fn lda_immediate(&mut self, value: u8) {
+    fn lda_immediate(&mut self, value: u8) -> u8 {
         self.registers.accumulator = value;
         // TODO: confirm if AFTER
         self.update_zero_negative_flags(self.registers.accumulator);
+
+        2
     }
 
     // Opcode: $AD
     // 4 cycles
-    fn lda_absolute(&mut self, address: u16) {
+    fn lda_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
-        self.lda_immediate(value)
+        self.lda_immediate(value);
+
+        4
     }
 
     // Opcode: $A5
     // 3 cycles
-    fn lda_zero_page(&mut self, addr_lower_byte: u8) {
+    fn lda_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
-        self.lda_immediate(value)
+        self.lda_immediate(value);
+
+        3
     }
 
     // Opcode: $B5
     // 4 cycles
-    fn lda_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn lda_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
-        self.lda_immediate(value)
+        self.lda_immediate(value);
+
+        4
     }
 
     // Opcode: $BD
     // 4 (+1 if page crossed) cycles
-    fn lda_absolute_x(&mut self, address: u16) {
+    fn lda_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
-        self.lda_immediate(value)
+        self.lda_immediate(value);
     }
 
     // Opcode: $B9
     // 4 (+1 if page crossed) cycles
-    fn lda_absolute_y(&mut self, address: u16) {
+    fn lda_absolute_y(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
-        self.lda_immediate(value)
+        self.lda_immediate(value);
     }
 
     // Opcode: $A1
     // 6 cycles
-    fn lda_indirect_x(&mut self, addr_lower_byte: u8) {
+    fn lda_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
-        self.lda_immediate(value)
+        self.lda_immediate(value);
+
+        6
     }
 
     // Opcode: $B1
     // 5 (+1 if page crossed) cycles
-    fn lda_indirect_y(&mut self, addr_lower_byte: u8) {
+    fn lda_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
-        self.lda_immediate(value)
+        self.lda_immediate(value);
+
+        5
     }
 
     /*
@@ -737,41 +838,49 @@ impl Cpu {
 
     // Opcode: $A2
     // 2 cycles
-    fn ldx_immediate(&mut self, value: u8) {
+    fn ldx_immediate(&mut self, value: u8) -> u8 {
         self.registers.index_x = value;
         self.update_zero_negative_flags(self.registers.index_x);
+
+        2
     }
 
     // Opcode: $AE
     // 4 cycles
-    fn ldx_absolute(&mut self, address: u16) {
+    fn ldx_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
-        self.ldx_immediate(value)
+        self.ldx_immediate(value);
+
+        4
     }
 
     // Opcode: $BE
     // 4 (+1 if page crossed) cycles
-    fn ldx_absolute_y(&mut self, address: u16) {
+    fn ldx_absolute_y(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
-        self.ldx_immediate(value)
+        self.ldx_immediate(value);
     }
 
     // Opcode: $A6
     // 3 cycles
-    fn ldx_zero_page(&mut self, addr_lower_byte: u8) {
+    fn ldx_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
-        self.ldx_immediate(value)
+        self.ldx_immediate(value);
+
+        3
     }
 
     // Opcode: $B6
     // 4 cycles
-    fn ldx_zero_page_y(&mut self, addr_lower_byte: u8) {
+    fn ldx_zero_page_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_y);
-        self.ldx_immediate(value)
+        self.ldx_immediate(value);
+
+        4
     }
 
     /*
@@ -783,41 +892,49 @@ impl Cpu {
 
     // Opcode: $A0
     // 2 cycles
-    fn ldy_immediate(&mut self, value: u8) {
+    fn ldy_immediate(&mut self, value: u8) -> u8 {
         self.registers.index_y = value;
         self.update_zero_negative_flags(self.registers.index_y);
+
+        2
     }
 
     // Opcode: $AC
     // 4 cycles
-    fn ldy_absolute(&mut self, address: u16) {
+    fn ldy_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
-        self.ldy_immediate(value)
+        self.ldy_immediate(value);
+
+        4
     }
 
     // Opcode: $BC
     // 4 (+1 if page crossed) cycles
-    fn ldy_absolute_x(&mut self, address: u16) {
+    fn ldy_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
-        self.ldy_immediate(value)
+        self.ldy_immediate(value);
     }
 
     // Opcode: $A4
     // 3 cycles
-    fn ldy_zero_page(&mut self, addr_lower_byte: u8) {
+    fn ldy_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
-        self.ldy_immediate(value)
+        self.ldy_immediate(value);
+
+        3
     }
 
     // Opcode: $B4
     // 4 cycles
-    fn ldy_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn ldy_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
-        self.ldy_immediate(value)
+        self.ldy_immediate(value);
+
+        4
     }
 
     /*
@@ -827,8 +944,10 @@ impl Cpu {
      *   Opcode: $AA
      *   Cycles: 2
      */
-    fn tax(&mut self) {
+    fn tax(&mut self) -> u8 {
         self.ldx_immediate(self.registers.accumulator);
+
+        2
     }
 
     /*
@@ -838,8 +957,10 @@ impl Cpu {
      *   Opcode: $A8
      *   Cycles: 2
      */
-    fn tay(&mut self) {
+    fn tay(&mut self) -> u8 {
         self.ldy_immediate(self.registers.accumulator);
+
+        2
     }
 
     /*
@@ -849,8 +970,10 @@ impl Cpu {
      *   Opcode: $BA
      *   Cycles: 2
      */
-    fn tsx(&mut self) {
-        self.ldx_immediate(self.registers.stack_pointer)
+    fn tsx(&mut self) -> u8 {
+        self.ldx_immediate(self.registers.stack_pointer);
+
+        2
     }
 
     /*
@@ -860,8 +983,10 @@ impl Cpu {
      *   Opcode: $8A
      *   Cycles: 2
      */
-    fn txa(&mut self) {
-        self.lda_immediate(self.registers.index_x)
+    fn txa(&mut self) -> u8 {
+        self.lda_immediate(self.registers.index_x);
+
+        2
     }
 
     /*
@@ -871,8 +996,10 @@ impl Cpu {
      *   Opcode: $9A
      *   Cycles: 2
      */
-    fn txs(&mut self) {
+    fn txs(&mut self) -> u8 {
         self.registers.stack_pointer = self.registers.index_x;
+
+        2
     }
 
     /*
@@ -882,8 +1009,10 @@ impl Cpu {
      *   Opcode: $98
      *   Cycles: 2
      */
-    fn tya(&mut self) {
-        self.lda_immediate(self.registers.index_y)
+    fn tya(&mut self) -> u8 {
+        self.lda_immediate(self.registers.index_y);
+
+        2
     }
 
     /*
@@ -893,51 +1022,61 @@ impl Cpu {
 
     // Opcode: $29
     // Cycles: 2
-    fn and_immediate(&mut self, value: u8) {
+    fn and_immediate(&mut self, value: u8) -> u8 {
         self.registers.accumulator &= value;
 
         self.update_zero_negative_flags(self.registers.accumulator);
+
+        2
     }
 
     // Opcode: $25
     // Cycles: 3
-    fn and_zero_page(&mut self, addr_lower_byte: u8) {
+    fn and_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
 
         self.and_immediate(value);
+
+        3
     }
 
     // Opcode: $35
     // Cycles: 4
-    fn and_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn and_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
 
         self.and_immediate(value);
+
+        4
     }
 
     // Opcode: $2D
     // Cycles: 4
-    fn and_absolute(&mut self, address: u16) {
+    fn and_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
 
         self.and_immediate(value);
+
+        4
     }
 
     // Opcode: $3D
     // Cycles: 4 (+1 if page crossed)
-    fn and_absolute_x(&mut self, address: u16) {
+    fn and_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
 
         self.and_immediate(value);
+
+        4
     }
 
     // Opcode: $39
     // Cycles: 4 (+1 if page crossed)
-    fn and_absolute_y(&mut self, address: u16) {
+    fn and_absolute_y(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
@@ -947,17 +1086,19 @@ impl Cpu {
 
     // Opcode: $21
     // Cycles: 6
-    fn and_indirect_x(&mut self, addr_lower_byte: u8) {
+    fn and_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
 
         self.and_immediate(value);
+
+        6
     }
 
     // Opcode: $31
     // Cycles: 5 (+1 if page crossed)
-    fn and_indirect_y(&mut self, addr_lower_byte: u8) {
+    fn and_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
@@ -972,41 +1113,49 @@ impl Cpu {
 
     // Opcode: $49
     // Cycles: 2
-    fn eor_immediate(&mut self, value: u8) {
+    fn eor_immediate(&mut self, value: u8) -> u8 {
         self.registers.accumulator ^= value;
 
         self.update_zero_negative_flags(self.registers.accumulator);
+
+        2
     }
 
     // Opcode: $45
     // Cycles: 3
-    fn eor_zero_page(&mut self, addr_lower_byte: u8) {
+    fn eor_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
 
         self.eor_immediate(value);
+
+        3
     }
 
     // Opcode: $55
     // Cycles: 4
-    fn eor_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn eor_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
 
         self.eor_immediate(value);
+
+        4
     }
 
     // Opcode: $4D
     // Cycles: 4
-    fn eor_absolute(&mut self, address: u16) {
+    fn eor_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
 
         self.eor_immediate(value);
+
+        4
     }
 
     // Opcode: $5D
     // Cycles: 4 (+1 if page crossed)
-    fn eor_absolute_x(&mut self, address: u16) {
+    fn eor_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
@@ -1016,7 +1165,7 @@ impl Cpu {
 
     // Opcode: $59
     // Cycles: 4 (+1 if page crossed)
-    fn eor_absolute_y(&mut self, address: u16) {
+    fn eor_absolute_y(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
@@ -1026,17 +1175,19 @@ impl Cpu {
 
     // Opcode: $41
     // Cycles: 6
-    fn eor_indirect_x(&mut self, addr_lower_byte: u8) {
+    fn eor_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
 
         self.eor_immediate(value);
+
+        6
     }
 
     // Opcode: $51
     // Cycles: 5 (+1 if page crossed)
-    fn eor_indirect_y(&mut self, addr_lower_byte: u8) {
+    fn eor_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
@@ -1051,41 +1202,49 @@ impl Cpu {
 
     // Opcode: $09
     // Cycles: 2
-    fn ora_immediate(&mut self, value: u8) {
+    fn ora_immediate(&mut self, value: u8) -> u8 {
         self.registers.accumulator |= value;
 
         self.update_zero_negative_flags(self.registers.accumulator);
+
+        2
     }
 
     // Opcode: $05
     // Cycles: 3
-    fn ora_zero_page(&mut self, addr_lower_byte: u8) {
+    fn ora_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
 
         self.ora_immediate(value);
+
+        3
     }
 
     // Opcode: $15
     // Cycles: 4
-    fn ora_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn ora_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x);
 
         self.ora_immediate(value);
+
+        4
     }
 
     // Opcode: $0D
     // Cycles: 4
-    fn ora_absolute(&mut self, address: u16) {
+    fn ora_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
 
         self.ora_immediate(value);
+
+        4
     }
 
     // Opcode: $1D
     // Cycles: 4 (+1 if page crossed)
-    fn ora_absolute_x(&mut self, address: u16) {
+    fn ora_absolute_x(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
@@ -1095,7 +1254,7 @@ impl Cpu {
 
     // Opcode: $19
     // Cycles: 4 (+1 if page crossed)
-    fn ora_absolute_y(&mut self, address: u16) {
+    fn ora_absolute_y(&mut self, address: u16) -> u8 {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_y);
@@ -1105,17 +1264,19 @@ impl Cpu {
 
     // Opcode: $01
     // Cycles: 6
-    fn ora_indirect_x(&mut self, addr_lower_byte: u8) {
+    fn ora_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
 
         self.ora_immediate(value);
+
+        6
     }
 
     // Opcode: $11
     // Cycles: 5 (+1 if page crossed)
-    fn ora_indirect_y(&mut self, addr_lower_byte: u8) {
+    fn ora_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
@@ -1130,7 +1291,7 @@ impl Cpu {
 
     // Opcode: $24
     // Cycles: 3
-    fn bit_zero_page(&mut self, addr_lower_byte: u8) {
+    fn bit_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self.memory.fetch_zero_page(addr_lower_byte);
         let result = self.registers.accumulator & value;
 
@@ -1151,11 +1312,13 @@ impl Cpu {
         } else {
             self.registers.unset_overflow();
         }
+
+        3
     }
 
     // Opcode: $2C
     // Cycles: 4
-    fn bit_absolute(&mut self, address: u16) {
+    fn bit_absolute(&mut self, address: u16) -> u8 {
         let value = self.memory.fetch_absolute(address);
         let result = self.registers.accumulator & value;
 
@@ -1176,6 +1339,8 @@ impl Cpu {
         } else {
             self.registers.unset_overflow();
         }
+
+        4
     }
 
     /*
@@ -1185,8 +1350,10 @@ impl Cpu {
      *   Opcode: $18
      *   Cycles: 2
      */
-    fn clc(&mut self) {
-        self.registers.unset_carry()
+    fn clc(&mut self) -> u8 {
+        self.registers.unset_carry();
+
+        2
     }
 
     /*
@@ -1197,7 +1364,7 @@ impl Cpu {
      *   Opcode: $D8
      *   Cycles: 2
      */
-    /* fn cld(&mut self) {
+    /* fn cld(&mut self) -> u8 {
         self.registers.unset_decimal_mode()
     } */
 
@@ -1208,8 +1375,10 @@ impl Cpu {
      *   Opcode: $58
      *   Cycles: 2
      */
-    fn cli(&mut self) {
-        self.registers.unset_interrupt_disable()
+    fn cli(&mut self) -> u8 {
+        self.registers.unset_interrupt_disable();
+
+        2
     }
 
     /*
@@ -1219,8 +1388,10 @@ impl Cpu {
      *   Opcode: $B8
      *   Cycles: 2
      */
-    fn clv(&mut self) {
-        self.registers.unset_overflow()
+    fn clv(&mut self) -> u8 {
+        self.registers.unset_overflow();
+
+        2
     }
 
     /*
@@ -1230,8 +1401,10 @@ impl Cpu {
      *   Opcode: $38
      *   Cycles: 2
      */
-    fn sec(&mut self) {
-        self.registers.set_carry()
+    fn sec(&mut self) -> u8 {
+        self.registers.set_carry();
+
+        2
     }
 
     /*
@@ -1243,7 +1416,7 @@ impl Cpu {
      *   Opcode: $F8
      *   Cycles: 2
      */
-    /* fn sed(&mut self) {
+    /* fn sed(&mut self) -> u8 {
         self.registers.set_decimal_mode()
     } */
 
@@ -1254,8 +1427,10 @@ impl Cpu {
      *   Opcode: $78
      *   Cycles: 2
      */
-    fn sei(&mut self) {
-        self.registers.set_interrupt_disable()
+    fn sei(&mut self) -> u8 {
+        self.registers.set_interrupt_disable();
+
+        2
     }
 
     /*
@@ -1265,8 +1440,10 @@ impl Cpu {
      *   Opcode: $48
      *   Cycles: 3
      */
-    fn pha(&mut self) {
-        self.stack_push(self.registers.accumulator)
+    fn pha(&mut self) -> u8 {
+        self.stack_push(self.registers.accumulator);
+
+        3
     }
 
     /*
@@ -1276,8 +1453,10 @@ impl Cpu {
      *   Opcode: $08
      *   Cycles: 3
      */
-    fn php(&mut self) {
-        self.stack_push(self.registers.processor_status)
+    fn php(&mut self) -> u8 {
+        self.stack_push(self.registers.processor_status);
+
+        3
     }
 
     /*
@@ -1287,9 +1466,11 @@ impl Cpu {
      *   Opcode: $68
      *   Cycles: 4
      */
-    fn pla(&mut self) {
+    fn pla(&mut self) -> u8 {
         let val = self.stack_pop();
         self.lda_immediate(val);
+
+        4
     }
 
     /*
@@ -1299,9 +1480,11 @@ impl Cpu {
      *   Opcode: $28
      *   Cycles: 4
      */
-    fn plp(&mut self) {
+    fn plp(&mut self) -> u8 {
         let val = self.stack_pop();
         self.registers.processor_status = val;
+
+        4
     }
 
     /*
@@ -1312,14 +1495,18 @@ impl Cpu {
 
     // Opcode: $4C
     // Cycles: 3
-    fn jmp_absolute(&mut self, address: u16) {
+    fn jmp_absolute(&mut self, address: u16) -> u8 {
         self.registers.program_counter = address;
+
+        3
     }
 
     // Opcode: $6C
     // Cycles: 5
-    fn jmp_indirect(&mut self, address: u16) {
+    fn jmp_indirect(&mut self, address: u16) -> u8 {
         self.registers.program_counter = self.memory.fetch_indirect(address);
+
+        5
     }
 
     /*
@@ -1329,7 +1516,7 @@ impl Cpu {
      *   Opcode: $20
      *   Cycles: 6
      */
-    fn jsr(&mut self, address: u16) {
+    fn jsr(&mut self, address: u16) -> u8 {
         // BUG: Not sure about this +2 offset..
         let pc_high = ((self.registers.program_counter + 2) >> 8) as u8;
         let pc_low = ((self.registers.program_counter + 2) & 0xFF) as u8;
@@ -1337,6 +1524,8 @@ impl Cpu {
         self.stack_push(pc_low);
 
         self.registers.program_counter = address;
+
+        6
     }
 
     /*
@@ -1346,9 +1535,12 @@ impl Cpu {
      *   Opcode: $90
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bcc(&mut self, offset: u8) {
+    fn bcc(&mut self, offset: u8) -> u8 {
         if self.registers.get_carry() == 0 {
             self.registers.program_counter += (offset as u16) - 2;
+            3
+        } else {
+            2
         }
     }
 
@@ -1359,9 +1551,12 @@ impl Cpu {
      *   Opcode: $B0
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bcs(&mut self, offset: u8) {
+    fn bcs(&mut self, offset: u8) -> u8 {
         if self.registers.get_carry() == 1 {
             self.registers.program_counter += (offset as u16) - 2;
+            3
+        } else {
+            2
         }
     }
 
@@ -1372,9 +1567,12 @@ impl Cpu {
      *   Opcode: $F0
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn beq(&mut self, offset: u8) {
+    fn beq(&mut self, offset: u8) -> u8 {
         if self.registers.get_zero() == 1 {
             self.registers.program_counter += (offset as u16) - 2;
+            3
+        } else {
+            2
         }
     }
 
@@ -1385,9 +1583,12 @@ impl Cpu {
      *   Opcode: $30
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bmi(&mut self, offset: u8) {
+    fn bmi(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() == 1 {
             self.registers.program_counter += (offset as u16) - 2;
+            3
+        } else {
+            2
         }
     }
 
@@ -1398,9 +1599,12 @@ impl Cpu {
      *   Opcode: $D0
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bne(&mut self, offset: u8) {
+    fn bne(&mut self, offset: u8) -> u8 {
         if self.registers.get_zero() == 0 {
             self.registers.program_counter += (offset as u16) - 2;
+            3
+        } else {
+            2
         }
     }
 
@@ -1411,9 +1615,12 @@ impl Cpu {
      *   Opcode: $10
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bpl(&mut self, offset: u8) {
+    fn bpl(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() == 0 {
             self.registers.program_counter += (offset as u16) - 2;
+            3
+        } else {
+            2
         }
     }
 
@@ -1424,9 +1631,12 @@ impl Cpu {
      *   Opcode: $50
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bvc(&mut self, offset: u8) {
+    fn bvc(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() == 0 {
             self.registers.program_counter += (offset as u16) - 2;
+            3
+        } else {
+            2
         }
     }
 
@@ -1437,9 +1647,12 @@ impl Cpu {
      *   Opcode: $70
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
-    fn bvs(&mut self, offset: u8) {
+    fn bvs(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() == 1 {
             self.registers.program_counter += (offset as u16) - 2;
+            3
+        } else {
+            2
         }
     }
 
@@ -1450,60 +1663,74 @@ impl Cpu {
 
     // Opcode: $85
     // Cycles: 3
-    fn sta_zero_page(&mut self, addr_lower_byte: u8) {
+    fn sta_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         self.memory
             .store_zero_page(addr_lower_byte, self.registers.accumulator);
+
+        3
     }
 
     // Opcode: $95
     // Cycles: 4
-    fn sta_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn sta_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         self.memory.store_zero_page_x(
             addr_lower_byte,
             self.registers.index_x,
             self.registers.accumulator,
         );
+
+        4
     }
 
     // Opcode: $8D
     // Cycles: 4
-    fn sta_absolute(&mut self, address: u16) {
+    fn sta_absolute(&mut self, address: u16) -> u8 {
         self.memory
             .store_absolute(address, self.registers.accumulator);
+
+        4
     }
 
     // Opcode: $9D
     // Cycles: 5
-    fn sta_absolute_x(&mut self, address: u16) {
+    fn sta_absolute_x(&mut self, address: u16) -> u8 {
         self.memory
             .store_absolute_x(address, self.registers.index_x, self.registers.accumulator);
+
+        5
     }
 
     // Opcode: $99
     // Cycles: 5
-    fn sta_absolute_y(&mut self, address: u16) {
+    fn sta_absolute_y(&mut self, address: u16) -> u8 {
         self.memory
             .store_absolute_x(address, self.registers.index_y, self.registers.accumulator);
+
+        5
     }
 
     // Opcode: $81
     // Cycles: 6
-    fn sta_indirect_x(&mut self, addr_lower_byte: u8) {
+    fn sta_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
         self.memory.store_indirect_x(
             addr_lower_byte,
             self.registers.index_x,
             self.registers.accumulator,
         );
+
+        6
     }
 
     // Opcode: $91
     // Cycles: 6
-    fn sta_indirect_y(&mut self, addr_lower_byte: u8) {
+    fn sta_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         self.memory.store_indirect_x(
             addr_lower_byte,
             self.registers.index_y,
             self.registers.accumulator,
         );
+
+        6
     }
 
     /*
@@ -1513,25 +1740,31 @@ impl Cpu {
 
     // Opcode: $86
     // Cycles: 3
-    fn stx_zero_page(&mut self, addr_lower_byte: u8) {
+    fn stx_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         self.memory
             .store_zero_page(addr_lower_byte, self.registers.index_x);
+
+        3
     }
 
     // Opcode: $96
     // Cycles: 4
-    fn stx_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn stx_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         self.memory.store_zero_page_x(
             addr_lower_byte,
             self.registers.index_y,
             self.registers.index_x,
         );
+
+        4
     }
 
     // Opcode: $8E
     // Cycles: 4
-    fn stx_absolute(&mut self, address: u16) {
-        self.memory.store_absolute(address, self.registers.index_x)
+    fn stx_absolute(&mut self, address: u16) -> u8 {
+        self.memory.store_absolute(address, self.registers.index_x);
+
+        4
     }
 
     /*
@@ -1541,25 +1774,31 @@ impl Cpu {
 
     // Opcode: $84
     // Cycles: 3
-    fn sty_zero_page(&mut self, addr_lower_byte: u8) {
+    fn sty_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         self.memory
             .store_zero_page(addr_lower_byte, self.registers.index_y);
+
+        3
     }
 
     // Opcode: $94
     // Cycles: 4
-    fn sty_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn sty_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         self.memory.store_zero_page_x(
             addr_lower_byte,
             self.registers.index_x,
             self.registers.index_y,
         );
+
+        4
     }
 
     // Opcode: $9C
     // Cycles: 4
-    fn sty_absolute(&mut self, address: u16) {
-        self.memory.store_absolute(address, self.registers.index_y)
+    fn sty_absolute(&mut self, address: u16) -> u8 {
+        self.memory.store_absolute(address, self.registers.index_y);
+
+        4
     }
 
     /*
@@ -1569,16 +1808,18 @@ impl Cpu {
 
     // Opcode: $E6
     // Cycles: 5
-    fn inc_zero_page(&mut self, addr_lower_byte: u8) {
+    fn inc_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let new_val = self.memory.fetch_zero_page(addr_lower_byte) + 1;
 
         self.memory.store_zero_page(addr_lower_byte, new_val);
         self.update_zero_negative_flags(new_val);
+
+        5
     }
 
     // Opcode: $F6
     // Cycles: 6
-    fn inc_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn inc_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let new_val = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x)
@@ -1587,20 +1828,24 @@ impl Cpu {
         self.memory
             .store_zero_page_x(addr_lower_byte, self.registers.index_x, new_val);
         self.update_zero_negative_flags(new_val);
+
+        6
     }
 
     // Opcode: $EE
     // Cycles: 6
-    fn inc_absolute(&mut self, address: u16) {
+    fn inc_absolute(&mut self, address: u16) -> u8 {
         let new_val = self.memory.fetch_absolute(address) + 1;
 
         self.memory.store_absolute(address, new_val);
         self.update_zero_negative_flags(new_val);
+
+        6
     }
 
     // Opcode: $FE
     // Cycles: 7
-    fn inc_absolute_x(&mut self, address: u16) {
+    fn inc_absolute_x(&mut self, address: u16) -> u8 {
         let new_val = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x)
@@ -1609,6 +1854,8 @@ impl Cpu {
         self.memory
             .store_absolute_x(address, self.registers.index_x, new_val);
         self.update_zero_negative_flags(new_val);
+
+        7
     }
 
     /*
@@ -1619,9 +1866,11 @@ impl Cpu {
      *   Cycles: 2
      */
 
-    fn inx_implied(&mut self) {
+    fn inx_implied(&mut self) -> u8 {
         self.registers.index_x += 1;
         self.update_zero_negative_flags(self.registers.index_x);
+
+        2
     }
 
     /*
@@ -1632,9 +1881,11 @@ impl Cpu {
      *   Cycles: 2
      */
 
-    fn iny_implied(&mut self) {
+    fn iny_implied(&mut self) -> u8 {
         self.registers.index_y += 1;
         self.update_zero_negative_flags(self.registers.index_y);
+
+        2
     }
 
     /*
@@ -1644,16 +1895,18 @@ impl Cpu {
 
     // Opcode: $C6
     // Cycles: 5
-    fn dec_zero_page(&mut self, addr_lower_byte: u8) {
+    fn dec_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let new_val = self.memory.fetch_zero_page(addr_lower_byte) - 1;
 
         self.memory.store_zero_page(addr_lower_byte, new_val);
         self.update_zero_negative_flags(new_val);
+
+        5
     }
 
     // Opcode: $D6
     // Cycles: 6
-    fn dnc_zero_page_x(&mut self, addr_lower_byte: u8) {
+    fn dnc_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
         let new_val = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x)
@@ -1662,20 +1915,24 @@ impl Cpu {
         self.memory
             .store_zero_page_x(addr_lower_byte, self.registers.index_x, new_val);
         self.update_zero_negative_flags(new_val);
+
+        6
     }
 
     // Opcode: $CE
     // Cycles: 6
-    fn dec_absolute(&mut self, address: u16) {
+    fn dec_absolute(&mut self, address: u16) -> u8 {
         let new_val = self.memory.fetch_absolute(address) - 1;
 
         self.memory.store_absolute(address, new_val);
         self.update_zero_negative_flags(new_val);
+
+        6
     }
 
     // Opcode: $DE
     // Cycles: 7
-    fn dec_absolute_x(&mut self, address: u16) {
+    fn dec_absolute_x(&mut self, address: u16) -> u8 {
         let new_val = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x)
@@ -1684,6 +1941,8 @@ impl Cpu {
         self.memory
             .store_absolute_x(address, self.registers.index_x, new_val);
         self.update_zero_negative_flags(new_val);
+
+        7
     }
 
     /*
@@ -1694,9 +1953,11 @@ impl Cpu {
      *   Cycles: 2
      */
 
-    fn dex_implied(&mut self) {
+    fn dex_implied(&mut self) -> u8 {
         self.registers.index_x -= 1;
         self.update_zero_negative_flags(self.registers.index_x);
+
+        2
     }
 
     /*
@@ -1707,9 +1968,11 @@ impl Cpu {
      *   Cycles: 2
      */
 
-    fn dey_implied(&mut self) {
+    fn dey_implied(&mut self) -> u8 {
         self.registers.index_y -= 1;
         self.update_zero_negative_flags(self.registers.index_y);
+
+        2
     }
 
     /*
@@ -1720,7 +1983,7 @@ impl Cpu {
      *   Cycles: 7
      */
 
-    fn brk_implied(&mut self) {
+    fn brk_implied(&mut self) -> u8 {
         let pc_high = (self.registers.program_counter >> 8) as u8;
         self.stack_push(pc_high);
 
@@ -1735,6 +1998,8 @@ impl Cpu {
         self.registers.program_counter = irq_vector;
 
         self.registers.set_break();
+
+        7
     }
 
     /*
@@ -1745,7 +2010,9 @@ impl Cpu {
      *   Cycles: 2
      */
 
-    fn nop_implied(&mut self) {}
+    fn nop_implied(&mut self) -> u8 {
+        2
+    }
 
     /*
      *   RTI - Return from Interrupt
@@ -1755,7 +2022,7 @@ impl Cpu {
      *   Cycles: 6
      */
 
-    fn rti_implied(&mut self) {
+    fn rti_implied(&mut self) -> u8 {
         let status = self.stack_pop();
         self.registers.processor_status = status;
 
@@ -1767,6 +2034,47 @@ impl Cpu {
         // Combine high and low bytes to form the full PC value
         let pc = (pc_high << 8) | pc_low;
         self.registers.program_counter = pc;
+
+        6
+    }
+
+    /*
+     * Returns the
+     */
+    fn decode_execute(&mut self, opcode: u8) -> (u8, u8) {
+        match opcode {
+            0x00 => (self.brk_implied(), 2),
+
+            0x01 => {
+                let value = self
+                    .memory
+                    .fetch_absolute(self.registers.program_counter + 1);
+                (self.ora_indirect_x(value), 2)
+            }
+
+            0x05 => {
+                let value = self
+                    .memory
+                    .fetch_absolute(self.registers.program_counter + 1);
+                (self.ora_zero_page(value), 2)
+            }
+
+            0x29 => {
+                let value = self
+                    .memory
+                    .fetch_absolute(self.registers.program_counter + 1);
+                (self.and_immediate(value), 2)
+            }
+
+            0x81 => {
+                let value = self
+                    .memory
+                    .fetch_absolute(self.registers.program_counter + 1);
+                (self.sta_indirect_x(value), 2)
+            }
+
+            _ => (0, 0),
+        }
     }
 
     pub fn tick(&mut self) -> u8 {

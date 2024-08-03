@@ -120,4 +120,10 @@ impl Memory {
             + index_y as u16;
         self.store_absolute(addr as u16, value);
     }
+
+    pub(crate) fn fetch_bytes(&self, address: u16) -> u16 {
+        let lower = self.buffer[(address) as usize];
+        let upper = self.buffer[(address + 1) as usize];
+        ((upper as u16) << 8) | lower as u16
+    }
 }

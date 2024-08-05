@@ -37,9 +37,8 @@ impl Memory {
         let mapper_flags = buffer[7] >> 4;
         info!("Mapper type: {}", mapper_flags);
 
-        info!("RAM size {}", self.buffer.len());
-
         let prg_rom = &buffer[16..(16 + prg_rom_size)];
+        println!("{:?}", prg_rom);
 
         // implementing NROM mapper (mapper 0) for now
         // copy prg-rom to 0x8000 and 0xC000

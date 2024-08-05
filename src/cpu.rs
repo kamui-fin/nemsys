@@ -1,8 +1,12 @@
+use std::thread::panicking;
+
 use crate::{memory, registers};
 
 pub struct Cpu {
     pub memory: memory::Memory,
     pub registers: registers::Registers,
+
+    pub num_cycles: usize, // elapsed # of cycles
 }
 
 impl Cpu {
@@ -10,11 +14,14 @@ impl Cpu {
         Self {
             memory: memory::Memory::new(),
             registers: registers::Registers::new(),
+            num_cycles: 0,
         }
     }
 
     pub fn init_pc(&mut self) {
-        self.registers.program_counter = self.memory.fetch_indirect(0xFFFC)
+        // self.registers.program_counter = self.memory.fetch_indirect(0xFFFC);
+        self.registers.program_counter = 0xC000;
+        println!("Initialize PC = {:x}", self.registers.program_counter);
     }
 
     // Helper method
@@ -2114,7 +2121,7 @@ impl Cpu {
             ($self:ident, $method:ident) => {{
                 let value = $self
                     .memory
-                    .fetch_absolute($self.registers.program_counter + 1);
+                    .fetch_indirect($self.registers.program_counter + 1);
                 ($self.$method(value.into()), 3)
             }};
         }
@@ -2123,7 +2130,7 @@ impl Cpu {
             ($self:ident, $method:ident) => {{
                 let value = $self
                     .memory
-                    .fetch_absolute($self.registers.program_counter + 1);
+                    .fetch_indirect($self.registers.program_counter + 1);
                 ($self.$method(value.into()), 0)
             }};
         }
@@ -2280,19 +2287,26 @@ impl Cpu {
             0xF9 => handle_opcode_threebytes!(self, sbc_absolute_y),
             0xFD => handle_opcode_threebytes!(self, sbc_absolute_x),
             0xFE => handle_opcode_threebytes!(self, inc_absolute_x),
-            _ => (0, 0),
+            _ => (0, 1),
         }
     }
 
-    pub fn tick(&mut self) -> usize {
+    pub fn tick(&mut self) {
         let opcode = self.memory.fetch_absolute(self.registers.program_counter);
-        info!("Fetched OPCODE {:x}", opcode);
+        let old_pc = self.registers.program_counter;
         let (cycles, bytes) = self.decode_execute(opcode);
+        self.num_cycles += cycles as usize;
         info!(
-            "OPCODE 0x{:x} executed {} cycles... Moving pc by {} bytes",
-            opcode, cycles, bytes
+            "{:x}  {:x}\tA:{:x} X:{:x} Y:{:x} P:{:x} SP:{:x} CYC:{}",
+            old_pc,
+            opcode,
+            self.registers.accumulator,
+            self.registers.index_x,
+            self.registers.index_y,
+            self.registers.processor_status,
+            self.registers.stack_pointer,
+            self.num_cycles
         );
         self.registers.program_counter += bytes as u16;
-        cycles as usize
     }
 }

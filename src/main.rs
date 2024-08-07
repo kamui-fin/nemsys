@@ -5,6 +5,7 @@
 extern crate log;
 extern crate simplelog;
 
+use std::fs::File;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 
@@ -12,9 +13,9 @@ use anyhow::Result;
 use cpu::Cpu;
 use simplelog::*;
 
+mod registers;
 mod cpu;
 mod memory;
-mod registers;
 
 fn main() -> Result<()> {
     CombinedLogger::init(vec![TermLogger::new(
@@ -22,7 +23,9 @@ fn main() -> Result<()> {
         Config::default(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
-    )])
+    ), 
+        WriteLogger::new(LevelFilter::Info, Config::default(), File::create("xines.log").unwrap())
+    ])
     .unwrap();
 
     let mut cpu = Cpu::new();
@@ -42,5 +45,11 @@ fn main() -> Result<()> {
         let wait_time = Duration::from_nanos((target_period - actual_period) as u64);
 
         sleep(wait_time);
+
+        if cpu.num_cycles > 1000 {
+            break;
+        }
     }
+    
+    Ok(())
 }

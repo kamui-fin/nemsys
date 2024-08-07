@@ -16,9 +16,11 @@ pub struct Registers {
     // Bit 1: carry flag
     // Bit 2: zero flag
     // Bit 3: interrupt disable
-    // Bit 4: break command
-    // Bit 5: overflow flag
-    // Bit 6: negative flag
+    // Bit 4: decimal mode
+    // Bit 5: break command
+    // Bit 6: 1
+    // Bit 7: overflow flag
+    // Bit 8: negative flag
     pub processor_status: u8,
 }
 
@@ -26,11 +28,11 @@ impl Registers {
     pub fn new() -> Registers {
         Self {
             program_counter: 0, // will be initialized later after loading ROM
-            stack_pointer: 0xFF,
+            stack_pointer: 0xfd,
             accumulator: 0,
             index_x: 0,
             index_y: 0,
-            processor_status: 0b000100,
+            processor_status: 0b0010_0100,
         }
     }
 
@@ -54,16 +56,20 @@ impl Registers {
         self.unset_nth_status_bit(2);
     }
 
-    pub fn unset_break(&mut self) {
+    pub fn unset_decimal(&mut self){
         self.unset_nth_status_bit(3);
     }
 
-    pub fn unset_overflow(&mut self) {
+    pub fn unset_break(&mut self) {
         self.unset_nth_status_bit(4);
     }
 
+    pub fn unset_overflow(&mut self) {
+        self.unset_nth_status_bit(6);
+    }
+
     pub fn unset_neg(&mut self) {
-        self.unset_nth_status_bit(5);
+        self.unset_nth_status_bit(7);
     }
 
     /*
@@ -86,16 +92,20 @@ impl Registers {
         self.set_nth_status_bit(2);
     }
 
-    pub fn set_break(&mut self) {
+    pub fn set_decimal(&mut self) {
         self.set_nth_status_bit(3);
     }
 
-    pub fn set_overflow(&mut self) {
+    pub fn set_break(&mut self) {
         self.set_nth_status_bit(4);
     }
 
+    pub fn set_overflow(&mut self) {
+        self.set_nth_status_bit(6);
+    }
+
     pub fn set_neg(&mut self) {
-        self.set_nth_status_bit(5);
+        self.set_nth_status_bit(7);
     }
 
     /*
@@ -117,15 +127,19 @@ impl Registers {
         self.get_nth_status_bit(2)
     }
 
-    pub fn get_break(&mut self) -> u8 {
+    pub fn get_decimal(&mut self) -> u8 {
         self.get_nth_status_bit(3)
     }
 
-    pub fn get_overflow(&mut self) -> u8 {
+    pub fn get_break(&mut self) -> u8 {
         self.get_nth_status_bit(4)
     }
 
+    pub fn get_overflow(&mut self) -> u8 {
+        self.get_nth_status_bit(6)
+    }
+
     pub fn get_neg(&mut self) -> u8 {
-        self.get_nth_status_bit(5)
+        self.get_nth_status_bit(7)
     }
 }

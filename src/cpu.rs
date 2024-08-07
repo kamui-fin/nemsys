@@ -45,11 +45,11 @@ impl Cpu {
     fn stack_push(&mut self, val: u8) {
         let stack_addr = (((0x1 as u16) << 8) & 0b1111_1111) as u8 | self.registers.stack_pointer;
         self.memory.buffer[stack_addr as usize] = val;
-        self.registers.stack_pointer -= 1;
+        self.registers.stack_pointer = self.registers.stack_pointer.wrapping_sub(1);
     }
 
     fn stack_pop(&mut self) -> u8 {
-        self.registers.stack_pointer += 1;
+        self.registers.stack_pointer = self.registers.stack_pointer.wrapping_add(1);
         let stack_addr = (((0x1 as u16) << 8) & 0b1111_1111) as u8 | self.registers.stack_pointer;
         let top = self.memory.buffer[stack_addr as usize];
         top
@@ -71,19 +71,22 @@ impl Cpu {
             + (self.registers.get_carry() as u16);
 
         // check if two positive sum to neg or vice versa
-        if same_sign && (sum & 0b1000_0000) != (value & 0b1000_0000) as u16 {
+        if same_sign && ((sum & 0b1000_0000) != (value & 0b1000_0000) as u16) {
             self.registers.set_overflow()
+        } else {
+            self.registers.unset_overflow();
         }
 
         // if need to use u16 range, then carry detected
         if sum > 0xFF {
             self.registers.set_carry();
-            self.registers.accumulator = (sum & 0b1111_1111) as u8;
+            self.registers.accumulator = (sum & 0b1111_1111) as u8; // TODO: gay code
         } else {
+            self.registers.unset_carry();
             self.registers.accumulator = sum as u8;
         }
 
-        self.update_zero_negative_flags(value);
+        self.update_zero_negative_flags(self.registers.accumulator);
         2
     }
 
@@ -263,7 +266,7 @@ impl Cpu {
             self.registers.unset_carry();
         }
 
-        let result = self.registers.accumulator - value;
+        let result = self.registers.accumulator.wrapping_sub(value);
 
         // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
         if result & 0b1000_0000 == 1 {
@@ -271,6 +274,12 @@ impl Cpu {
         } else {
             self.registers.unset_neg();
         }
+
+        // if self.registers.accumulator < value {
+        //     self.registers.set_neg();
+        // } else {
+        //     self.registers.unset_neg();
+        // }
 
         2
     }
@@ -367,10 +376,11 @@ impl Cpu {
             self.registers.unset_carry()
         }
 
-        let result = self.registers.index_x - value;
+        // let result = self.registers.index_x - value;
 
-        // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
-        if result & 0b1000_0000 == 1 {
+        // // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
+        // if result & 0b1000_0000 > 0 {
+        if self.registers.index_x < value {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -416,9 +426,10 @@ impl Cpu {
             self.registers.unset_carry()
         }
 
-        let result = self.registers.index_y - value;
+        // let result = self.registers.index_y - value;
 
-        if result & 0b1000_0000 == 1 {
+        // if result & 0b1000_0000 > 0 {
+        if self.registers.index_y < value {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -454,7 +465,7 @@ impl Cpu {
     fn asl_immediate(&mut self, value: u8) -> u8 {
         // Bit 7 is set in carry flag
         let first_bit = value & 0b1000_0000;
-        if first_bit == 1 {
+        if first_bit > 0 {
             self.registers.set_carry()
         } else {
             self.registers.unset_carry()
@@ -531,7 +542,7 @@ impl Cpu {
     fn lsr_immediate(&mut self, value: u8) -> u8 {
         // Bit 7 is set in carry flag
         let first_bit = value & 0b0000_0001;
-        if first_bit == 1 {
+        if first_bit > 0{
             self.registers.set_carry()
         }
 
@@ -617,7 +628,7 @@ impl Cpu {
         let new_value = value << 1;
         let new_value = new_value | self.registers.get_carry();
 
-        if first_bit == 1 {
+        if first_bit > 0 {
             self.registers.set_carry()
         } else {
             self.registers.unset_carry()
@@ -695,7 +706,7 @@ impl Cpu {
         let new_value = value >> 1;
         let new_value = new_value | (self.registers.get_carry() << 7);
 
-        if last_bit == 1 {
+        if last_bit > 0 {
             self.registers.set_carry()
         } else {
             self.registers.unset_carry()
@@ -1404,7 +1415,9 @@ impl Cpu {
      *   Cycles: 2
      */
     fn cld(&mut self) -> u8 {
-        self.nop_implied()
+        self.registers.unset_decimal();
+
+        2
     }
 
     /*
@@ -1455,9 +1468,10 @@ impl Cpu {
      *   Opcode: $F8
      *   Cycles: 2
      */
-    /* fn sed(&mut self) -> u8 {
-        self.registers.set_decimal_mode()
-    } */
+    fn sed(&mut self) -> u8 {
+        self.registers.set_decimal();
+        2
+    }
 
     /*
      *   SEI - Set Interrupt Disable
@@ -1493,7 +1507,7 @@ impl Cpu {
      *   Cycles: 3
      */
     fn php(&mut self) -> u8 {
-        self.stack_push(self.registers.processor_status);
+        self.stack_push(self.registers.processor_status | 0x10);
 
         3
     }
@@ -1521,7 +1535,8 @@ impl Cpu {
      */
     fn plp(&mut self) -> u8 {
         let val = self.stack_pop();
-        self.registers.processor_status = val;
+        self.registers.processor_status = val | 0b100000;
+        self.registers.unset_break();
 
         4
     }
@@ -1557,8 +1572,8 @@ impl Cpu {
      */
     fn jsr(&mut self, address: u16) -> u8 {
         // BUG: Not sure about this +2 offset..
-        let pc_high = ((self.registers.program_counter + 2) >> 8) as u8;
-        let pc_low = ((self.registers.program_counter + 2) & 0xFF) as u8;
+        let pc_high = ((self.registers.program_counter + 3) >> 8) as u8;
+        let pc_low = ((self.registers.program_counter + 3) & 0xFF) as u8;
         self.stack_push(pc_high);
         self.stack_push(pc_low);
 
@@ -1575,8 +1590,9 @@ impl Cpu {
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
     fn bcc(&mut self, offset: u8) -> u8 {
+        let carry = self.registers.get_carry();
         if self.registers.get_carry() == 0 {
-            self.registers.program_counter += (offset as u16) - 2;
+            self.registers.program_counter += (offset as u16);
             3
         } else {
             2
@@ -1591,8 +1607,8 @@ impl Cpu {
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
     fn bcs(&mut self, offset: u8) -> u8 {
-        if self.registers.get_carry() == 1 {
-            self.registers.program_counter += (offset as u16) - 2;
+        if self.registers.get_carry() > 0 {
+            self.registers.program_counter += (offset as u16);
             3
         } else {
             2
@@ -1607,8 +1623,8 @@ impl Cpu {
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
     fn beq(&mut self, offset: u8) -> u8 {
-        if self.registers.get_zero() == 1 {
-            self.registers.program_counter += (offset as u16) - 2;
+        if self.registers.get_zero() > 0 {
+            self.registers.program_counter += (offset as u16);
             3
         } else {
             2
@@ -1623,8 +1639,8 @@ impl Cpu {
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
     fn bmi(&mut self, offset: u8) -> u8 {
-        if self.registers.get_neg() == 1 {
-            self.registers.program_counter += (offset as u16) - 2;
+        if self.registers.get_neg() > 0 {
+            self.registers.program_counter += (offset as u16);
             3
         } else {
             2
@@ -1640,7 +1656,7 @@ impl Cpu {
      */
     fn bne(&mut self, offset: u8) -> u8 {
         if self.registers.get_zero() == 0 {
-            self.registers.program_counter += (offset as u16) - 2;
+            self.registers.program_counter += (offset as u16);
             3
         } else {
             2
@@ -1656,7 +1672,7 @@ impl Cpu {
      */
     fn bpl(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() == 0 {
-            self.registers.program_counter += (offset as u16) - 2;
+            self.registers.program_counter += (offset as u16);
             3
         } else {
             2
@@ -1672,7 +1688,7 @@ impl Cpu {
      */
     fn bvc(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() == 0 {
-            self.registers.program_counter += (offset as u16) - 2;
+            self.registers.program_counter += (offset as u16);
             3
         } else {
             2
@@ -1687,8 +1703,8 @@ impl Cpu {
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
     fn bvs(&mut self, offset: u8) -> u8 {
-        if self.registers.get_overflow() == 1 {
-            self.registers.program_counter += (offset as u16) - 2;
+        if self.registers.get_overflow() > 0 {
+            self.registers.program_counter += (offset as u16);
             3
         } else {
             2
@@ -2029,11 +2045,13 @@ impl Cpu {
         // Push low byte
         let pc_low = ((self.registers.program_counter + 1) & 0xFF) as u8;
         self.stack_push(pc_low);
-        self.stack_push(self.registers.processor_status);
+
+        self.stack_push(self.registers.processor_status | 0x10);
 
         let irq_vector_low = self.memory.fetch_absolute(0xFFFE) as u16;
         let irq_vector_high = self.memory.fetch_absolute(0xFFFF) as u16;
         let irq_vector = irq_vector_low | (irq_vector_high << 8);
+        debug!("Going to irq {irq_vector}");
         self.registers.program_counter = irq_vector;
 
         self.registers.set_break();
@@ -2085,6 +2103,8 @@ impl Cpu {
     fn rts(&mut self) -> u8 {
         let pc_low = self.stack_pop() as u16;
         let pc_high = self.stack_pop() as u16;
+
+        error!("{:x} {:x}", pc_low, pc_high);
 
         let pc = (pc_high << 8) | pc_low;
         self.registers.program_counter = pc;
@@ -2283,7 +2303,7 @@ impl Cpu {
             0xF1 => handle_opcode_twobytes!(self, sbc_indirect_y),
             0xF5 => handle_opcode_twobytes!(self, sbc_zero_page_x),
             0xF6 => handle_opcode_twobytes!(self, inc_zero_page_x),
-            0xF8 => handle_opcode_onebyte!(self, nop_implied), // decimal mode stub
+            0xF8 => handle_opcode_onebyte!(self, sed),
             0xF9 => handle_opcode_threebytes!(self, sbc_absolute_y),
             0xFD => handle_opcode_threebytes!(self, sbc_absolute_x),
             0xFE => handle_opcode_threebytes!(self, inc_absolute_x),
@@ -2294,10 +2314,11 @@ impl Cpu {
     pub fn tick(&mut self) {
         let opcode = self.memory.fetch_absolute(self.registers.program_counter);
         let old_pc = self.registers.program_counter;
-        let (cycles, bytes) = self.decode_execute(opcode);
-        self.num_cycles += cycles as usize;
+        if old_pc < 0x8000 {
+            panic!();
+        }
         info!(
-            "{:x}  {:x}\tA:{:x} X:{:x} Y:{:x} P:{:x} SP:{:x} CYC:{}",
+            "{:02X}  {:04X}\t\t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:  0, 0 CYC:{}",
             old_pc,
             opcode,
             self.registers.accumulator,
@@ -2307,6 +2328,8 @@ impl Cpu {
             self.registers.stack_pointer,
             self.num_cycles
         );
+        let (cycles, bytes) = self.decode_execute(opcode);
+        self.num_cycles += cycles as usize;
         self.registers.program_counter += bytes as u16;
     }
 }

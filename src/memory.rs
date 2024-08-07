@@ -38,13 +38,14 @@ impl Memory {
         info!("Mapper type: {}", mapper_flags);
 
         let prg_rom = &buffer[16..(16 + prg_rom_size)];
-        println!("{:?}", prg_rom);
 
         // implementing NROM mapper (mapper 0) for now
         // copy prg-rom to 0x8000 and 0xC000
         self.buffer[0x8000..(0x8000 + prg_rom_size)].clone_from_slice(prg_rom);
         self.buffer[0xC000..(0xC000 + prg_rom_size)].clone_from_slice(prg_rom);
 
+        println!("{:?}", prg_rom);
+        // panic!();
         Ok(())
     }
 

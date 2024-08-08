@@ -1145,6 +1145,282 @@ impl Cpu {
         5
     }
 
+    // Opcode: $83
+    // Cycles: 6
+    fn sax_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self.registers.index_x & self.registers.accumulator;
+        self.memory.store_indirect_x(addr_lower_byte, self.registers.index_x, value);
+
+        self.update_zero_negative_flags(value);
+        6
+    }
+
+    // Opcode: $87
+    // Cycles: 3
+    fn sax_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self.registers.index_x & self.registers.accumulator;
+        self.memory.store_zero_page(addr_lower_byte, value);
+
+        self.update_zero_negative_flags(value);
+        3
+    }
+    
+    // Opcode: $8F
+    // Cycles: 4
+    fn sax_absolute(&mut self, address: u16) -> u8 {
+        let value = self.registers.index_x & self.registers.accumulator;
+        self.memory.store_absolute(address, value);
+
+        self.update_zero_negative_flags(value);
+        4
+    }
+
+    // Opcode: $97
+    // Cycles: 4
+    fn sax_zero_page_y(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self.registers.index_x & self.registers.accumulator;
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_y, value);
+
+        self.update_zero_negative_flags(value);
+        4
+    }
+
+    // Opcde: $C3
+    // Cycles: 8
+    fn dcp_indirect_x(&mut self, addr_lower_byte: u8) -> u8{
+        let value = self.memory.fetch_indirect_x(addr_lower_byte, self.registers.index_x).wrapping_sub(1);
+        self.memory.store_indirect_x(addr_lower_byte, self.registers.index_x, value);
+
+        if self.registers.accumulator >= value {
+            self.registers.set_carry();
+        } else {
+            self.registers.unset_carry();
+        }
+        
+        8
+    }
+
+    // Opcde: $D3
+    // Cycles: 8
+    fn dcp_indirect_y(&mut self, addr_lower_byte: u8) -> u8{
+        let value = self.memory.fetch_indirect_y(addr_lower_byte, self.registers.index_y).wrapping_sub(1);
+        self.memory.store_indirect_x(addr_lower_byte, self.registers.index_y, value);
+
+        if self.registers.accumulator >= value {
+            self.registers.set_carry();
+        } else {
+            self.registers.unset_carry();
+        }
+        
+        8
+    }
+    
+
+    // Opcde: $C7
+    // Cycles: 5
+    fn dcp_zero_page(&mut self, addr_lower_byte: u8) -> u8{
+        let value = self.memory.fetch_zero_page(addr_lower_byte).wrapping_sub(1);
+        self.memory.store_zero_page(addr_lower_byte, value);
+
+        if self.registers.accumulator >= value {
+            self.registers.set_carry();
+        } else {
+            self.registers.unset_carry();
+        }
+        
+        5
+    }
+
+    // Opcde: $D7
+    // Cycles: 6
+    fn dcp_zero_page_x(&mut self, addr_lower_byte: u8) -> u8{
+        let value = self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x).wrapping_sub(1);
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+
+        if self.registers.accumulator >= value {
+            self.registers.set_carry();
+        } else {
+            self.registers.unset_carry();
+        }
+        
+        6
+    }
+
+    // Opcde: $CF
+    // Cycles: 6
+    fn dcp_absolute(&mut self, address: u16) -> u8{
+        let value = self.memory.fetch_absolute(address).wrapping_sub(1);
+        self.memory.store_absolute(address, value);
+
+        if self.registers.accumulator >= value {
+            self.registers.set_carry();
+        } else {
+            self.registers.unset_carry();
+        }
+        
+        6
+    }
+
+    // Opcde: $DF
+    // Cycles: 7
+    fn dcp_absolute_x(&mut self, address: u16) -> u8{
+        let value = self.memory.fetch_absolute_x(address, self.registers.index_x).wrapping_sub(1);
+        self.memory.store_absolute_x(address, self.registers.index_x, value);
+
+        if self.registers.accumulator >= value {
+            self.registers.set_carry();
+        } else {
+            self.registers.unset_carry();
+        }
+        
+        7
+    }
+
+    // Opcde: $DB
+    // Cycles: 7
+    fn dcp_absolute_y(&mut self, address: u16) -> u8{
+        let value = self.memory.fetch_absolute_x(address, self.registers.index_y).wrapping_sub(1);
+        self.memory.store_absolute_x(address, self.registers.index_y, value);
+
+        if self.registers.accumulator >= value {
+            self.registers.set_carry();
+        } else {
+            self.registers.unset_carry();
+        }
+        
+        7
+    }
+
+    // Opcode: $E3
+    // Cycles: 8
+    fn isb_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self.memory.fetch_indirect_x(addr_lower_byte, self.registers.index_x).wrapping_add(1);
+        self.memory.store_indirect_x(addr_lower_byte, self.registers.index_x, value);
+
+        self.sbc_indirect_x(addr_lower_byte);
+
+        8
+    }
+
+    // Opcode: $F3
+    // Cycles: 8
+    fn isb_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self.memory.fetch_indirect_y(addr_lower_byte, self.registers.index_y).wrapping_add(1);
+        self.memory.store_indirect_x(addr_lower_byte, self.registers.index_y, value);
+
+        self.sbc_indirect_y(addr_lower_byte);
+
+        8
+    }
+
+
+    // Opcode: $E7
+    // Cycles: 5
+    fn isb_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self.memory.fetch_zero_page(addr_lower_byte).wrapping_add(1);
+        self.memory.store_zero_page(addr_lower_byte, value);
+
+        self.sbc_zero_page(addr_lower_byte);
+
+        5
+    }
+
+    // Opcode: $F7
+    // Cycles: 6
+    fn isb_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self.memory.fetch_zero_page_x(addr_lower_byte, self.registers.index_x).wrapping_add(1);
+        self.memory.store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
+
+        self.sbc_zero_page_x(addr_lower_byte);
+
+        6
+    }
+
+    // Opcode: $EF
+    // Cycles: 6
+    fn isb_absolute(&mut self, address: u16) -> u8 {
+        let value = self.memory.fetch_absolute(address).wrapping_add(1);
+        self.memory.store_absolute(address, value);
+
+        self.sbc_absolute(address);
+
+        6
+    }
+
+    // Opcode: $FB
+    // Cycles: 7
+    fn isb_absolute_y(&mut self, address: u16) -> u8 {
+        let value = self.memory.fetch_absolute_x(address, self.registers.index_y).wrapping_add(1);
+        self.memory.store_absolute_x(address, self.registers.index_y, value);
+
+        self.sbc_absolute_y(address);
+
+        7
+    }
+
+    // Opcode: $FF
+    // Cycles: 7
+    fn isb_absolute_x(&mut self, address: u16) -> u8 {
+        let value = self.memory.fetch_absolute_x(address, self.registers.index_x).wrapping_add(1);
+        self.memory.store_absolute_x(address, self.registers.index_x, value);
+
+        self.sbc_absolute_x(address);
+
+        7
+    }
+
+    // Opcode: $A3
+    // Cycles: 6
+    fn lax_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
+        self.lda_indirect_x(addr_lower_byte);
+        self.ldx_immediate(self.memory.fetch_indirect_x(addr_lower_byte, self.registers.index_x));
+        6
+    }
+
+    // Opcode: $B3
+    // Cycles: 5 (+1 if page boundary is crossed)
+    fn lax_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
+        self.lda_indirect_y(addr_lower_byte);
+        self.ldx_immediate(self.memory.fetch_indirect_x(addr_lower_byte, self.registers.index_y));
+        5
+    }
+
+
+    // Opcode: $A7
+    // Cycles: 3
+    fn lax_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
+        self.lda_zero_page(addr_lower_byte);
+        self.ldx_zero_page(addr_lower_byte);
+        3
+    }
+
+    // Opcode: $B7
+    // Cycles: 4
+    fn lax_zero_page_y(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self
+            .memory
+            .fetch_zero_page_x(addr_lower_byte, self.registers.index_y);
+        self.lda_immediate(value);
+        self.ldx_zero_page_y(addr_lower_byte);
+        4
+    }
+
+    // Opcode: $AF
+    // Cycles: 4
+    fn lax_absolute(&mut self, address: u16) -> u8 {
+        self.lda_absolute(address);
+        self.ldx_absolute(address);
+        4
+    }
+
+    // Opcode: $BF
+    // Cycles: 4 (+1 if page boundary crossed)
+    fn lax_absolute_y(&mut self, address: u16) -> u8 {
+        self.lda_absolute_y(address);
+        self.ldx_absolute_y(address);
+        4
+    }
+
     /*
      *   EOR - Exclusive OR
      *   Perform the XOR operation
@@ -2695,7 +2971,7 @@ impl Cpu {
             0x87 => (0, 2),
             0x97 => (0, 2),
             0x8F => (0, 3),
-            0x83 => (0, 2),
+            0x83 => handle_opcode_twobytes!(self, sax_indirect_x),
             0xCB => (0, 2),
             0x9F => (0, 3),
             0x93 => (0, 2),

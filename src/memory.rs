@@ -44,7 +44,6 @@ impl Memory {
         self.buffer[0x8000..(0x8000 + prg_rom_size)].clone_from_slice(prg_rom);
         self.buffer[0xC000..(0xC000 + prg_rom_size)].clone_from_slice(prg_rom);
 
-        println!("{:?}", prg_rom);
         // panic!();
         Ok(())
     }
@@ -59,12 +58,12 @@ impl Memory {
 
     // also called for absolute_y
     pub(crate) fn fetch_absolute_x(&self, address: u16, index_x: u8) -> u8 {
-        self.fetch_absolute(address + (index_x as u16))
+        self.fetch_absolute(address.wrapping_add(index_x as u16))
     }
 
     // also called for absolute_y
     pub(crate) fn store_absolute_x(&mut self, address: u16, index_x: u8, value: u8) {
-        self.store_absolute(address + (index_x as u16), value)
+        self.store_absolute(address.wrapping_add(index_x as u16), value)
     }
 
     pub(crate) fn fetch_zero_page(&self, addr_lower_byte: u8) -> u8 {
@@ -86,8 +85,10 @@ impl Memory {
         self.store_absolute(addr as u16, value);
     }
 
-    pub(crate) fn fetch_indirect(&self, address: u16) -> u16 {
-        (self.fetch_absolute(address) as u16 + (self.fetch_absolute(address + 1) as u16) * 256)
+    pub(crate) fn fetch_indirect_quirk(&self, address: u16) -> u16 {
+        let next_address = ((address >> 8) << 8 as u8) | ((address & 0xFF) as u8).wrapping_add(1) as u16;
+        error!("{:x} {:x}", self.fetch_absolute(address), self.fetch_absolute(next_address));
+        (self.fetch_absolute(address) as u16 + (self.fetch_absolute(next_address) as u16) * 256)
             as u16
     }
 
@@ -106,9 +107,11 @@ impl Memory {
 
     pub(crate) fn fetch_indirect_y(&self, addr_lower_byte: u8, index_y: u8) -> u8 {
         // val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)
-        let addr = self.fetch_zero_page(addr_lower_byte) as u16
-            + self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256
-            + index_y as u16;
+        // error!("{:x} {:x}", addr_lower_byte, index_y);
+        let addr = self.fetch_zero_page(addr_lower_byte) as u16;
+        let addr = addr.wrapping_add(self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256);
+        // error!("{:x} {:x}", addr, index_y);
+        let addr = addr.wrapping_add(index_y as u16);
         self.fetch_absolute(addr)
     }
 }

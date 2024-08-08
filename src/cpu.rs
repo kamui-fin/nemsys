@@ -43,14 +43,14 @@ impl Cpu {
      */
 
     fn stack_push(&mut self, val: u8) {
-        let stack_addr = (((0x1 as u16) << 8) & 0b1111_1111) as u8 | self.registers.stack_pointer;
+        let stack_addr: u16 = ((0x01 as u16) << 8) | self.registers.stack_pointer as u16;
         self.memory.buffer[stack_addr as usize] = val;
         self.registers.stack_pointer = self.registers.stack_pointer.wrapping_sub(1);
     }
 
     fn stack_pop(&mut self) -> u8 {
         self.registers.stack_pointer = self.registers.stack_pointer.wrapping_add(1);
-        let stack_addr = (((0x1 as u16) << 8) & 0b1111_1111) as u8 | self.registers.stack_pointer;
+        let stack_addr: u16 = ((0x01 as u16) << 8) | self.registers.stack_pointer as u16;
         let top = self.memory.buffer[stack_addr as usize];
         top
     }
@@ -171,7 +171,7 @@ impl Cpu {
     // Opcode: $E9
     // 2 cycles
     fn sbc_immediate(&mut self, value: u8) -> u8 {
-        self.adc_immediate((value as i8 * -1i8) as u8); // twos complement
+        self.adc_immediate(!value); // twos complement
 
         2
     }
@@ -269,7 +269,7 @@ impl Cpu {
         let result = self.registers.accumulator.wrapping_sub(value);
 
         // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
-        if result & 0b1000_0000 == 1 {
+        if result & 0b1000_0000 > 0 {
             self.registers.set_neg();
         } else {
             self.registers.unset_neg();
@@ -376,11 +376,11 @@ impl Cpu {
             self.registers.unset_carry()
         }
 
-        // let result = self.registers.index_x - value;
+        let result = self.registers.index_x.wrapping_sub(value);
 
         // // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
-        // if result & 0b1000_0000 > 0 {
-        if self.registers.index_x < value {
+        if result & 0b1000_0000 > 0 {
+        // if self.registers.index_x < value {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -426,10 +426,10 @@ impl Cpu {
             self.registers.unset_carry()
         }
 
-        // let result = self.registers.index_y - value;
+        let result = self.registers.index_y.wrapping_sub(value);
 
-        // if result & 0b1000_0000 > 0 {
-        if self.registers.index_y < value {
+        if result & 0b1000_0000 > 0 {
+        // if self.registers.index_y < value {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -544,12 +544,16 @@ impl Cpu {
         let first_bit = value & 0b0000_0001;
         if first_bit > 0{
             self.registers.set_carry()
+        } else {
+            self.registers.unset_carry()
         }
 
         let new_value = value >> 1;
 
         if new_value == 0 {
             self.registers.set_zero();
+        } else {
+            self.registers.unset_zero();
         }
 
         // Not really necessary as bit 7 will be 0
@@ -1137,7 +1141,7 @@ impl Cpu {
     fn and_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
-            .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
 
         self.and_immediate(value);
 
@@ -1232,7 +1236,7 @@ impl Cpu {
     fn eor_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
-            .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
 
         self.eor_immediate(value);
 
@@ -1327,7 +1331,7 @@ impl Cpu {
     fn ora_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
-            .fetch_indirect_y(addr_lower_byte, self.registers.index_x);
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
 
         self.ora_immediate(value);
 
@@ -1537,9 +1541,11 @@ impl Cpu {
         let val = self.stack_pop();
         self.registers.processor_status = val | 0b100000;
         self.registers.unset_break();
+        
 
         4
     }
+    
 
     /*
      *   JMP - Jump
@@ -1558,7 +1564,10 @@ impl Cpu {
     // Opcode: $6C
     // Cycles: 5
     fn jmp_indirect(&mut self, address: u16) -> u8 {
-        self.registers.program_counter = self.memory.fetch_indirect(address);
+        let value = self
+            .memory
+            .fetch_indirect_quirk(address);
+        self.registers.program_counter = value;
 
         5
     }
@@ -1572,8 +1581,8 @@ impl Cpu {
      */
     fn jsr(&mut self, address: u16) -> u8 {
         // BUG: Not sure about this +2 offset..
-        let pc_high = ((self.registers.program_counter + 3) >> 8) as u8;
-        let pc_low = ((self.registers.program_counter + 3) & 0xFF) as u8;
+        let pc_high = ((self.registers.program_counter + 2) >> 8) as u8;
+        let pc_low = ((self.registers.program_counter + 2) & 0xFF) as u8;
         self.stack_push(pc_high);
         self.stack_push(pc_low);
 
@@ -1864,7 +1873,7 @@ impl Cpu {
     // Opcode: $E6
     // Cycles: 5
     fn inc_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
-        let new_val = self.memory.fetch_zero_page(addr_lower_byte) + 1;
+        let new_val = self.memory.fetch_zero_page(addr_lower_byte).wrapping_add(1);
 
         self.memory.store_zero_page(addr_lower_byte, new_val);
         self.update_zero_negative_flags(new_val);
@@ -1878,7 +1887,7 @@ impl Cpu {
         let new_val = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x)
-            + 1;
+            .wrapping_add(1);
 
         self.memory
             .store_zero_page_x(addr_lower_byte, self.registers.index_x, new_val);
@@ -1890,7 +1899,7 @@ impl Cpu {
     // Opcode: $EE
     // Cycles: 6
     fn inc_absolute(&mut self, address: u16) -> u8 {
-        let new_val = self.memory.fetch_absolute(address) + 1;
+        let new_val = self.memory.fetch_absolute(address).wrapping_add(1);
 
         self.memory.store_absolute(address, new_val);
         self.update_zero_negative_flags(new_val);
@@ -1904,7 +1913,7 @@ impl Cpu {
         let new_val = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x)
-            + 1;
+            .wrapping_add(1);
 
         self.memory
             .store_absolute_x(address, self.registers.index_x, new_val);
@@ -1951,7 +1960,7 @@ impl Cpu {
     // Opcode: $C6
     // Cycles: 5
     fn dec_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
-        let new_val = self.memory.fetch_zero_page(addr_lower_byte) - 1;
+        let new_val = self.memory.fetch_zero_page(addr_lower_byte).wrapping_sub(1);
 
         self.memory.store_zero_page(addr_lower_byte, new_val);
         self.update_zero_negative_flags(new_val);
@@ -1965,7 +1974,7 @@ impl Cpu {
         let new_val = self
             .memory
             .fetch_zero_page_x(addr_lower_byte, self.registers.index_x)
-            - 1;
+            .wrapping_sub(1);
 
         self.memory
             .store_zero_page_x(addr_lower_byte, self.registers.index_x, new_val);
@@ -1977,7 +1986,7 @@ impl Cpu {
     // Opcode: $CE
     // Cycles: 6
     fn dec_absolute(&mut self, address: u16) -> u8 {
-        let new_val = self.memory.fetch_absolute(address) - 1;
+        let new_val = self.memory.fetch_absolute(address).wrapping_sub(1);
 
         self.memory.store_absolute(address, new_val);
         self.update_zero_negative_flags(new_val);
@@ -1991,7 +2000,7 @@ impl Cpu {
         let new_val = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x)
-            - 1;
+            .wrapping_sub(1);
 
         self.memory
             .store_absolute_x(address, self.registers.index_x, new_val);
@@ -2081,7 +2090,7 @@ impl Cpu {
 
     fn rti_implied(&mut self) -> u8 {
         let status = self.stack_pop();
-        self.registers.processor_status = status;
+        self.registers.processor_status = status | 0b100000;
 
         let pc_low = self.stack_pop() as u16;
         let pc_high = self.stack_pop() as u16;
@@ -2104,12 +2113,16 @@ impl Cpu {
         let pc_low = self.stack_pop() as u16;
         let pc_high = self.stack_pop() as u16;
 
-        error!("{:x} {:x}", pc_low, pc_high);
-
         let pc = (pc_high << 8) | pc_low;
+        
         self.registers.program_counter = pc;
 
         6
+    }
+
+    fn fetch_u16(&mut self, addr: u16) -> u16 {
+        error!("fetch_u16: {:x} {:x}", (self.memory.fetch_absolute(addr) as u16), self.memory.fetch_absolute(addr + 1) as u16);
+        (self.memory.fetch_absolute(addr) as u16) + (self.memory.fetch_absolute(addr + 1) as u16  * 256)
     }
 
     /*
@@ -2139,18 +2152,14 @@ impl Cpu {
 
         macro_rules! handle_opcode_threebytes {
             ($self:ident, $method:ident) => {{
-                let value = $self
-                    .memory
-                    .fetch_indirect($self.registers.program_counter + 1);
-                ($self.$method(value.into()), 3)
+                let value = self.fetch_u16($self.registers.program_counter + 1);
+                ($self.$method(value), 3)
             }};
         }
 
         macro_rules! handle_opcode_jump {
             ($self:ident, $method:ident) => {{
-                let value = $self
-                    .memory
-                    .fetch_indirect($self.registers.program_counter + 1);
+                let value = self.fetch_u16($self.registers.program_counter + 1);
                 ($self.$method(value.into()), 0)
             }};
         }
@@ -2210,7 +2219,7 @@ impl Cpu {
             0x59 => handle_opcode_threebytes!(self, eor_absolute_y),
             0x5D => handle_opcode_threebytes!(self, eor_absolute_x),
             0x5E => handle_opcode_threebytes!(self, lsr_absolute_x),
-            0x60 => handle_opcode_zerobyte!(self, rts),
+            0x60 => handle_opcode_onebyte!(self, rts),
             0x61 => handle_opcode_twobytes!(self, adc_indirect_x),
             0x65 => handle_opcode_twobytes!(self, adc_zero_page),
             0x66 => handle_opcode_twobytes!(self, ror_zero_page),
@@ -2314,9 +2323,6 @@ impl Cpu {
     pub fn tick(&mut self) {
         let opcode = self.memory.fetch_absolute(self.registers.program_counter);
         let old_pc = self.registers.program_counter;
-        if old_pc < 0x8000 {
-            panic!();
-        }
         info!(
             "{:02X}  {:04X}\t\t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:  0, 0 CYC:{}",
             old_pc,

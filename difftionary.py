@@ -62,7 +62,7 @@ def compare_logs(emulator_logs, ground_truth_logs):
 
         i += 1
         j += 1
-
+    
 
 def format_rust_log(s):
     return s
@@ -72,16 +72,20 @@ def main():
     run_cargo_command()
     emulator_logs = read_logs("nemsys.log")
     ground_truth_logs = read_logs("romtest/nestest.log")
-    for i, (a, b) in enumerate([compare_logs(emulator_logs, ground_truth_logs)]):
-        print("Context:")
-        print(format_rust_log(context[i][0]), end="")
-        print(context[i][1])
+    error = compare_logs(emulator_logs, ground_truth_logs)
+    if not error:
+        print("No errors found!")
+        return
+    a, b = error
+    i = 0
+    print("Context:")
+    print(format_rust_log(context[i][0]), end="")
+    print(context[i][1])
 
-        print("Error at:")
-        print(format_rust_log(a), end="")
-        print(b)
-        print("-----")
-        break
+    print("Error at:")
+    print(format_rust_log(a), end="")
+    print(b)
+    print("-----")
 
 
 main()

@@ -93,24 +93,33 @@ impl Memory {
     pub(crate) fn fetch_indirect_x(&self, addr_lower_byte: u8, index_x: u8) -> u8 {
         // val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256)
         let addr = self.fetch_zero_page(addr_lower_byte.wrapping_add(index_x)) as u16
-            + self.fetch_zero_page(addr_lower_byte.wrapping_add(index_x + 1)) as u16 * 256;
+            + self.fetch_zero_page(addr_lower_byte.wrapping_add((index_x).wrapping_add(1))) as u16 * 256;
         self.fetch_absolute(addr)
     }
 
     pub(crate) fn store_indirect_x(&mut self, addr_lower_byte: u8, index_x: u8, value: u8) {
         let addr = self.fetch_zero_page(addr_lower_byte.wrapping_add(index_x)) as u16
-            + self.fetch_zero_page(addr_lower_byte.wrapping_add(index_x + 1)) as u16 * 256;
+            + self.fetch_zero_page(addr_lower_byte.wrapping_add(index_x).wrapping_add(1)) as u16 * 256;
         self.store_absolute(addr, value)
+    }
+
+    pub(crate) fn store_indirect_y(&mut self, addr_lower_byte: u8, index_y: u8, value: u8){
+        let addr = self.fetch_zero_page(addr_lower_byte) as u16;
+        let addr =
+            addr.wrapping_add(self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256);
+        let addr = addr.wrapping_add(index_y as u16);
+
+        self.store_absolute(addr, value);
     }
 
     pub(crate) fn fetch_indirect_y(&self, addr_lower_byte: u8, index_y: u8) -> u8 {
         // val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)
-        // error!("{:x} {:x}", addr_lower_byte, index_y);
         let addr = self.fetch_zero_page(addr_lower_byte) as u16;
         let addr =
             addr.wrapping_add(self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256);
-        // error!("{:x} {:x}", addr, index_y);
         let addr = addr.wrapping_add(index_y as u16);
         self.fetch_absolute(addr)
     }
+
+
 }

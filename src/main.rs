@@ -51,7 +51,7 @@ fn main() -> Result<()> {
 
         sleep(wait_time);
 
-        if cpu.num_cycles > 20000 {
+        if cpu.num_cycles > 275000 {
             break;
         }
     }

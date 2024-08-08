@@ -380,7 +380,7 @@ impl Cpu {
 
         // // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
         if result & 0b1000_0000 > 0 {
-        // if self.registers.index_x < value {
+            // if self.registers.index_x < value {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -429,7 +429,7 @@ impl Cpu {
         let result = self.registers.index_y.wrapping_sub(value);
 
         if result & 0b1000_0000 > 0 {
-        // if self.registers.index_y < value {
+            // if self.registers.index_y < value {
             self.registers.set_neg()
         } else {
             self.registers.unset_neg()
@@ -542,7 +542,7 @@ impl Cpu {
     fn lsr_immediate(&mut self, value: u8) -> u8 {
         // Bit 7 is set in carry flag
         let first_bit = value & 0b0000_0001;
-        if first_bit > 0{
+        if first_bit > 0 {
             self.registers.set_carry()
         } else {
             self.registers.unset_carry()
@@ -1541,11 +1541,9 @@ impl Cpu {
         let val = self.stack_pop();
         self.registers.processor_status = val | 0b100000;
         self.registers.unset_break();
-        
 
         4
     }
-    
 
     /*
      *   JMP - Jump
@@ -1564,9 +1562,7 @@ impl Cpu {
     // Opcode: $6C
     // Cycles: 5
     fn jmp_indirect(&mut self, address: u16) -> u8 {
-        let value = self
-            .memory
-            .fetch_indirect_quirk(address);
+        let value = self.memory.fetch_indirect_quirk(address);
         self.registers.program_counter = value;
 
         5
@@ -2114,15 +2110,20 @@ impl Cpu {
         let pc_high = self.stack_pop() as u16;
 
         let pc = (pc_high << 8) | pc_low;
-        
+
         self.registers.program_counter = pc;
 
         6
     }
 
     fn fetch_u16(&mut self, addr: u16) -> u16 {
-        error!("fetch_u16: {:x} {:x}", (self.memory.fetch_absolute(addr) as u16), self.memory.fetch_absolute(addr + 1) as u16);
-        (self.memory.fetch_absolute(addr) as u16) + (self.memory.fetch_absolute(addr + 1) as u16  * 256)
+        error!(
+            "fetch_u16: {:x} {:x}",
+            (self.memory.fetch_absolute(addr) as u16),
+            self.memory.fetch_absolute(addr + 1) as u16
+        );
+        (self.memory.fetch_absolute(addr) as u16)
+            + (self.memory.fetch_absolute(addr + 1) as u16 * 256)
     }
 
     /*
@@ -2316,6 +2317,111 @@ impl Cpu {
             0xF9 => handle_opcode_threebytes!(self, sbc_absolute_y),
             0xFD => handle_opcode_threebytes!(self, sbc_absolute_x),
             0xFE => handle_opcode_threebytes!(self, inc_absolute_x),
+            0x4B => (0, 2),
+            0x0B => (0, 2),
+            0x2B => (0, 2),
+            0x8B => (0, 2),
+            0x6B => (0, 2),
+            0xC7 => (0, 2),
+            0xD7 => (0, 2),
+            0xCF => (0, 3),
+            0xDF => (0, 3),
+            0xDB => (0, 3),
+            0xC3 => (0, 2),
+            0xD3 => (0, 2),
+            0xE7 => (0, 2),
+            0xF7 => (0, 2),
+            0xEF => (0, 3),
+            0xFF => (0, 3),
+            0xFB => (0, 3),
+            0xE3 => (0, 2),
+            0xF3 => (0, 2),
+            0xBB => (0, 3),
+            0xA7 => (0, 2),
+            0xB7 => (0, 2),
+            0xAF => (0, 3),
+            0xBF => (0, 3),
+            0xA3 => (0, 2),
+            0xB3 => (0, 2),
+            0xAB => (0, 2),
+            0x27 => (0, 2),
+            0x37 => (0, 2),
+            0x2F => (0, 3),
+            0x3F => (0, 3),
+            0x3B => (0, 3),
+            0x23 => (0, 2),
+            0x33 => (0, 2),
+            0x67 => (0, 2),
+            0x77 => (0, 2),
+            0x6F => (0, 3),
+            0x7F => (0, 3),
+            0x7B => (0, 3),
+            0x63 => (0, 2),
+            0x73 => (0, 2),
+            0x87 => (0, 2),
+            0x97 => (0, 2),
+            0x8F => (0, 3),
+            0x83 => (0, 2),
+            0xCB => (0, 2),
+            0x9F => (0, 3),
+            0x93 => (0, 2),
+            0x9E => (0, 3),
+            0x9C => (0, 3),
+            0x07 => (0, 2),
+            0x17 => (0, 2),
+            0x0F => (0, 3),
+            0x1F => (0, 3),
+            0x1B => (0, 3),
+            0x03 => (0, 2),
+            0x13 => (0, 2),
+            0x47 => (0, 2),
+            0x57 => (0, 2),
+            0x4F => (0, 3),
+            0x5F => (0, 3),
+            0x5B => (0, 3),
+            0x43 => (0, 2),
+            0x53 => (0, 2),
+            0x9B => (0, 3),
+            0xEB => (0, 2),
+            0x1A => (0, 1),
+            0x3A => (0, 1),
+            0x5A => (0, 1),
+            0x7A => (0, 1),
+            0xDA => (0, 1),
+            0xFA => (0, 1),
+            0x80 => (0, 2),
+            0x82 => (0, 2),
+            0x89 => (0, 2),
+            0xC2 => (0, 2),
+            0xE2 => (0, 2),
+            0x04 => (0, 2),
+            0x44 => (0, 2),
+            0x64 => (0, 2),
+            0x14 => (0, 2),
+            0x34 => (0, 2),
+            0x54 => (0, 2),
+            0x74 => (0, 2),
+            0xD4 => (0, 2),
+            0xF4 => (0, 2),
+            0x0C => (0, 3),
+            0x1C => (0, 3),
+            0x3C => (0, 3),
+            0x5C => (0, 3),
+            0x7C => (0, 3),
+            0xDC => (0, 3),
+            0xFC => (0, 3),
+            0x02 => (0, 1),
+            0x12 => (0, 1),
+            0x22 => (0, 1),
+            0x32 => (0, 1),
+            0x42 => (0, 1),
+            0x52 => (0, 1),
+            0x62 => (0, 1),
+            0x72 => (0, 1),
+            0x92 => (0, 1),
+            0xB2 => (0, 1),
+            0xD2 => (0, 1),
+            0xF2 => (0, 1),
             _ => (0, 1),
         }
     }

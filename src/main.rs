@@ -13,18 +13,23 @@ use anyhow::Result;
 use cpu::Cpu;
 use simplelog::*;
 
-mod registers;
 mod cpu;
 mod memory;
+mod registers;
 
 fn main() -> Result<()> {
-    CombinedLogger::init(vec![TermLogger::new(
-        LevelFilter::Info,
-        Config::default(),
-        TerminalMode::Mixed,
-        ColorChoice::Auto,
-    ), 
-        WriteLogger::new(LevelFilter::Info, Config::default(), File::create("xines.log").unwrap())
+    CombinedLogger::init(vec![
+        TermLogger::new(
+            LevelFilter::Info,
+            Config::default(),
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        ),
+        WriteLogger::new(
+            LevelFilter::Info,
+            Config::default(),
+            File::create("nemsys.log").unwrap(),
+        ),
     ])
     .unwrap();
 
@@ -50,6 +55,6 @@ fn main() -> Result<()> {
             break;
         }
     }
-    
+
     Ok(())
 }

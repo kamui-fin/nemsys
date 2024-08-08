@@ -56,7 +56,7 @@ impl Registers {
         self.unset_nth_status_bit(2);
     }
 
-    pub fn unset_decimal(&mut self){
+    pub fn unset_decimal(&mut self) {
         self.unset_nth_status_bit(3);
     }
 
@@ -77,7 +77,7 @@ impl Registers {
      */
 
     fn set_nth_status_bit(&mut self, n: u8) {
-        self.processor_status = self.processor_status | (1 << n);
+        self.processor_status |= 1 << n;
     }
 
     pub fn set_carry(&mut self) {

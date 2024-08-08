@@ -1,5 +1,3 @@
-use std::thread::panicking;
-
 use crate::{memory, registers};
 
 pub struct Cpu {
@@ -43,16 +41,15 @@ impl Cpu {
      */
 
     fn stack_push(&mut self, val: u8) {
-        let stack_addr: u16 = ((0x01 as u16) << 8) | self.registers.stack_pointer as u16;
+        let stack_addr: u16 = ((0x01_u16) << 8) | self.registers.stack_pointer as u16;
         self.memory.buffer[stack_addr as usize] = val;
         self.registers.stack_pointer = self.registers.stack_pointer.wrapping_sub(1);
     }
 
     fn stack_pop(&mut self) -> u8 {
         self.registers.stack_pointer = self.registers.stack_pointer.wrapping_add(1);
-        let stack_addr: u16 = ((0x01 as u16) << 8) | self.registers.stack_pointer as u16;
-        let top = self.memory.buffer[stack_addr as usize];
-        top
+        let stack_addr: u16 = ((0x01_u16) << 8) | self.registers.stack_pointer as u16;
+        self.memory.buffer[stack_addr as usize]
     }
 
     /*
@@ -1595,9 +1592,8 @@ impl Cpu {
      *   Cycles: 2 (+1 if branch succeeds +2 if to a new page)
      */
     fn bcc(&mut self, offset: u8) -> u8 {
-        let carry = self.registers.get_carry();
         if self.registers.get_carry() == 0 {
-            self.registers.program_counter += (offset as u16);
+            self.registers.program_counter += offset as u16;
             3
         } else {
             2
@@ -1613,7 +1609,7 @@ impl Cpu {
      */
     fn bcs(&mut self, offset: u8) -> u8 {
         if self.registers.get_carry() > 0 {
-            self.registers.program_counter += (offset as u16);
+            self.registers.program_counter += offset as u16;
             3
         } else {
             2
@@ -1629,7 +1625,7 @@ impl Cpu {
      */
     fn beq(&mut self, offset: u8) -> u8 {
         if self.registers.get_zero() > 0 {
-            self.registers.program_counter += (offset as u16);
+            self.registers.program_counter += offset as u16;
             3
         } else {
             2
@@ -1645,7 +1641,7 @@ impl Cpu {
      */
     fn bmi(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() > 0 {
-            self.registers.program_counter += (offset as u16);
+            self.registers.program_counter += offset as u16;
             3
         } else {
             2
@@ -1680,7 +1676,7 @@ impl Cpu {
      */
     fn bpl(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() == 0 {
-            self.registers.program_counter += (offset as u16);
+            self.registers.program_counter += offset as u16;
             3
         } else {
             2
@@ -1696,7 +1692,7 @@ impl Cpu {
      */
     fn bvc(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() == 0 {
-            self.registers.program_counter += (offset as u16);
+            self.registers.program_counter += offset as u16;
             3
         } else {
             2
@@ -1712,7 +1708,7 @@ impl Cpu {
      */
     fn bvs(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() > 0 {
-            self.registers.program_counter += (offset as u16);
+            self.registers.program_counter += offset as u16;
             3
         } else {
             2

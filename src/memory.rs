@@ -31,7 +31,7 @@ impl Memory {
         let prg_rom_size = buffer[5];
         info!("Program ROM size: {} kb", prg_rom_size * 16);
 
-        let prg_rom_size: usize = (prg_rom_size as usize * 16384).into();
+        let prg_rom_size: usize = prg_rom_size as usize * 16384;
         info!("Copying {} bytes", prg_rom_size);
 
         let mapper_flags = buffer[7] >> 4;
@@ -86,10 +86,8 @@ impl Memory {
     }
 
     pub(crate) fn fetch_indirect_quirk(&self, address: u16) -> u16 {
-        let next_address = ((address >> 8) << 8 as u8) | ((address & 0xFF) as u8).wrapping_add(1) as u16;
-        error!("{:x} {:x}", self.fetch_absolute(address), self.fetch_absolute(next_address));
-        (self.fetch_absolute(address) as u16 + (self.fetch_absolute(next_address) as u16) * 256)
-            as u16
+        let next_address = ((address >> 8) << 8) | ((address & 0xFF) as u8).wrapping_add(1) as u16;
+        self.fetch_absolute(address) as u16 + (self.fetch_absolute(next_address) as u16) * 256
     }
 
     pub(crate) fn fetch_indirect_x(&self, addr_lower_byte: u8, index_x: u8) -> u8 {
@@ -109,7 +107,8 @@ impl Memory {
         // val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)
         // error!("{:x} {:x}", addr_lower_byte, index_y);
         let addr = self.fetch_zero_page(addr_lower_byte) as u16;
-        let addr = addr.wrapping_add(self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256);
+        let addr =
+            addr.wrapping_add(self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256);
         // error!("{:x} {:x}", addr, index_y);
         let addr = addr.wrapping_add(index_y as u16);
         self.fetch_absolute(addr)

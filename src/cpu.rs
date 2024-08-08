@@ -1661,7 +1661,10 @@ impl Cpu {
      */
     fn bne(&mut self, offset: u8) -> u8 {
         if self.registers.get_zero() == 0 {
-            self.registers.program_counter += (offset as u16);
+            self.registers.program_counter = self
+                .registers
+                .program_counter
+                .wrapping_add_signed(offset as i8 as i16);
             3
         } else {
             2
@@ -2116,6 +2119,341 @@ impl Cpu {
         6
     }
 
+    // ILLEGAL OPCODES
+
+    /*
+     *   USBC: SBC oper + NOP
+     *   effectively same as normal SBC immediate, instr. E9.
+     *   A - M - C -> A
+     *
+     *   Opcode: $EB
+     *   Cycles: 2
+     */
+    fn usbc(&mut self, val: u8) -> u8 {
+        self.sbc_immediate(val);
+        2
+    }
+
+    /*
+     *   RLA: ROL oper + AND oper
+     *   M = C <- [76543210] <- C, A AND M -> A
+     */
+
+    // Opcode: $27
+    // Cycles: 5
+    fn rla_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
+        self.rol_zero_page(addr_lower_byte);
+        self.and_zero_page(addr_lower_byte);
+
+        5
+    }
+
+    // Opcode: $37
+    // Cycles: 6
+    fn rla_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
+        self.rol_zero_page_x(addr_lower_byte);
+        self.and_zero_page_x(addr_lower_byte);
+
+        6
+    }
+
+    // Opcode: $2F
+    // Cycles: 6
+    fn rla_absolute(&mut self, address: u16) -> u8 {
+        self.rol_absolute(address);
+        self.and_absolute(address);
+
+        6
+    }
+
+    // Opcode: $3F
+    // Cycles: 7
+    fn rla_absolute_x(&mut self, address: u16) -> u8 {
+        self.rol_absolute_x(address);
+        self.and_absolute_x(address);
+
+        7
+    }
+
+    // Opcode: $3B
+    // Cycles: 7
+    fn rla_absolute_y(&mut self, address: u16) -> u8 {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+
+        self.rol_immediate(value);
+        self.and_immediate(value);
+
+        7
+    }
+
+    // Opcode: $23
+    // Cycles: 8
+    fn rla_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+
+        self.rol_immediate(value);
+        self.and_immediate(value);
+
+        8
+    }
+
+    // Opcode: $33
+    // Cycles: 8
+    fn rla_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
+
+        self.rol_immediate(value);
+        self.and_immediate(value);
+
+        8
+    }
+
+    /*
+     *   RRA: ROR oper + ADC oper
+     *   M = C -> [76543210] -> C, A + M + C -> A, C
+     */
+
+    // Opcode: $67
+    // Cycles: 5
+    fn rra_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
+        self.ror_zero_page(addr_lower_byte);
+        self.adc_zero_page(addr_lower_byte);
+
+        5
+    }
+
+    // Opcode: $77
+    // Cycles: 6
+    fn rra_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
+        self.ror_zero_page_x(addr_lower_byte);
+        self.adc_zero_page_x(addr_lower_byte);
+
+        6
+    }
+
+    // Opcode: $6F
+    // Cycles: 6
+    fn rra_absolute(&mut self, address: u16) -> u8 {
+        self.ror_absolute(address);
+        self.adc_absolute(address);
+
+        6
+    }
+
+    // Opcode: $7F
+    // Cycles: 7
+    fn rra_absolute_x(&mut self, address: u16) -> u8 {
+        self.ror_absolute_x(address);
+        self.adc_absolute_x(address);
+
+        7
+    }
+
+    // Opcode: $7B
+    // Cycles: 7
+    fn rra_absolute_y(&mut self, address: u16) -> u8 {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+
+        self.ror_immediate(value);
+        self.adc_immediate(value);
+
+        7
+    }
+
+    // Opcode: $63
+    // Cycles: 8
+    fn rra_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+
+        self.ror_immediate(value);
+        self.adc_immediate(value);
+
+        8
+    }
+
+    // Opcode: $73
+    // Cycles: 8
+    fn rra_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
+
+        self.ror_immediate(value);
+        self.adc_immediate(value);
+
+        8
+    }
+
+    /*
+     *   SLO: ASL oper + ORA oper
+     *   M = C <- [76543210] <- 0, A OR M -> A
+     */
+
+    // Opcode: $07
+    // Cycles: 5
+    fn slo_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
+        self.asl_zero_page(addr_lower_byte);
+        self.ora_zero_page(addr_lower_byte);
+
+        5
+    }
+
+    // Opcode: $17
+    // Cycles: 6
+    fn slo_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
+        self.asl_zero_page_x(addr_lower_byte);
+        self.ora_zero_page_x(addr_lower_byte);
+
+        6
+    }
+
+    // Opcode: $0F
+    // Cycles: 6
+    fn slo_absolute(&mut self, address: u16) -> u8 {
+        self.asl_absolute(address);
+        self.ora_absolute(address);
+
+        6
+    }
+
+    // Opcode: $1F
+    // Cycles: 7
+    fn slo_absolute_x(&mut self, address: u16) -> u8 {
+        self.asl_absolute_x(address);
+        self.ora_absolute_x(address);
+
+        7
+    }
+
+    // Opcode: $1B
+    // Cycles: 7
+    fn slo_absolute_y(&mut self, address: u16) -> u8 {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+
+        self.asl_immediate(value);
+        self.ora_immediate(value);
+
+        7
+    }
+
+    // Opcode: $03
+    // Cycles: 8
+    fn slo_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+
+        self.asl_immediate(value);
+        self.ora_immediate(value);
+
+        8
+    }
+
+    // Opcode: $13
+    // Cycles: 8
+    fn slo_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
+
+        self.asl_immediate(value);
+        self.ora_immediate(value);
+
+        8
+    }
+
+    /*
+     *   SRE: LSR oper + EOR oper
+     *   M = 0 -> [76543210] -> C, A EOR M -> A
+     */
+
+    // Opcode: $47
+    // Cycles: 5
+    fn sre_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
+        self.lsr_zero_page(addr_lower_byte);
+        self.eor_zero_page(addr_lower_byte);
+
+        5
+    }
+
+    // Opcode: $57
+    // Cycles: 6
+    fn sre_zero_page_x(&mut self, addr_lower_byte: u8) -> u8 {
+        self.lsr_zero_page_x(addr_lower_byte);
+        self.eor_zero_page_x(addr_lower_byte);
+
+        6
+    }
+
+    // Opcode: $4F
+    // Cycles: 6
+    fn sre_absolute(&mut self, address: u16) -> u8 {
+        self.lsr_absolute(address);
+        self.eor_absolute(address);
+
+        6
+    }
+
+    // Opcode: $5F
+    // Cycles: 7
+    fn sre_absolute_x(&mut self, address: u16) -> u8 {
+        self.lsr_absolute_x(address);
+        self.eor_absolute_x(address);
+
+        7
+    }
+
+    // Opcode: $5B
+    // Cycles: 7
+    fn sre_absolute_y(&mut self, address: u16) -> u8 {
+        let value = self
+            .memory
+            .fetch_absolute_x(address, self.registers.index_y);
+
+        self.lsr_immediate(value);
+        self.eor_immediate(value);
+
+        7
+    }
+
+    // Opcode: $43
+    // Cycles: 8
+    fn sre_indirect_x(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self
+            .memory
+            .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
+
+        self.lsr_immediate(value);
+        self.eor_immediate(value);
+
+        8
+    }
+
+    // Opcode: $53
+    // Cycles: 8
+    fn sre_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
+        let value = self
+            .memory
+            .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
+
+        self.lsr_immediate(value);
+        self.eor_immediate(value);
+
+        8
+    }
+
     fn fetch_u16(&mut self, addr: u16) -> u16 {
         error!(
             "fetch_u16: {:x} {:x}",
@@ -2344,20 +2682,20 @@ impl Cpu {
             0xA3 => (0, 2),
             0xB3 => (0, 2),
             0xAB => (0, 2),
-            0x27 => (0, 2),
-            0x37 => (0, 2),
-            0x2F => (0, 3),
-            0x3F => (0, 3),
-            0x3B => (0, 3),
-            0x23 => (0, 2),
-            0x33 => (0, 2),
-            0x67 => (0, 2),
-            0x77 => (0, 2),
-            0x6F => (0, 3),
-            0x7F => (0, 3),
-            0x7B => (0, 3),
-            0x63 => (0, 2),
-            0x73 => (0, 2),
+            0x27 => handle_opcode_twobytes!(self, rla_zero_page),
+            0x37 => handle_opcode_twobytes!(self, rla_zero_page_x),
+            0x2F => handle_opcode_threebytes!(self, rla_absolute),
+            0x3F => handle_opcode_threebytes!(self, rla_absolute_x),
+            0x3B => handle_opcode_threebytes!(self, rla_absolute_y),
+            0x23 => handle_opcode_twobytes!(self, rla_indirect_x),
+            0x33 => handle_opcode_twobytes!(self, rla_indirect_y),
+            0x67 => handle_opcode_twobytes!(self, rra_zero_page),
+            0x77 => handle_opcode_twobytes!(self, rra_zero_page_x),
+            0x6F => handle_opcode_threebytes!(self, rra_absolute),
+            0x7F => handle_opcode_threebytes!(self, rra_absolute_x),
+            0x7B => handle_opcode_threebytes!(self, rra_absolute_y),
+            0x63 => handle_opcode_twobytes!(self, rra_indirect_x),
+            0x73 => handle_opcode_twobytes!(self, rra_indirect_y),
             0x87 => (0, 2),
             0x97 => (0, 2),
             0x8F => (0, 3),
@@ -2367,22 +2705,22 @@ impl Cpu {
             0x93 => (0, 2),
             0x9E => (0, 3),
             0x9C => (0, 3),
-            0x07 => (0, 2),
-            0x17 => (0, 2),
-            0x0F => (0, 3),
-            0x1F => (0, 3),
-            0x1B => (0, 3),
-            0x03 => (0, 2),
-            0x13 => (0, 2),
-            0x47 => (0, 2),
-            0x57 => (0, 2),
-            0x4F => (0, 3),
-            0x5F => (0, 3),
-            0x5B => (0, 3),
-            0x43 => (0, 2),
-            0x53 => (0, 2),
+            0x07 => handle_opcode_twobytes!(self, slo_zero_page),
+            0x17 => handle_opcode_twobytes!(self, slo_zero_page_x),
+            0x0F => handle_opcode_threebytes!(self, slo_absolute),
+            0x1F => handle_opcode_threebytes!(self, slo_absolute_x),
+            0x1B => handle_opcode_threebytes!(self, slo_absolute_y),
+            0x03 => handle_opcode_twobytes!(self, slo_indirect_x),
+            0x13 => handle_opcode_twobytes!(self, slo_indirect_y),
+            0x47 => handle_opcode_twobytes!(self, sre_zero_page),
+            0x57 => handle_opcode_twobytes!(self, sre_zero_page_x),
+            0x4F => handle_opcode_threebytes!(self, sre_absolute),
+            0x5F => handle_opcode_threebytes!(self, sre_absolute_x),
+            0x5B => handle_opcode_threebytes!(self, sre_absolute_y),
+            0x43 => handle_opcode_twobytes!(self, sre_indirect_x),
+            0x53 => handle_opcode_twobytes!(self, sre_indirect_y),
             0x9B => (0, 3),
-            0xEB => (0, 2),
+            0xEB => handle_opcode_twobytes!(self, usbc),
             0x1A => (0, 1),
             0x3A => (0, 1),
             0x5A => (0, 1),
@@ -2422,7 +2760,6 @@ impl Cpu {
             0xB2 => (0, 1),
             0xD2 => (0, 1),
             0xF2 => (0, 1),
-            _ => (0, 1),
         }
     }
 

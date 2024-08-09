@@ -50,10 +50,6 @@ fn main() -> Result<()> {
         let wait_time = Duration::from_nanos((target_period - actual_period) as u64);
 
         sleep(wait_time);
-
-        if cpu.num_cycles > 275000 {
-            break;
-        }
     }
 
     Ok(())

@@ -2868,7 +2868,7 @@ impl Cpu {
 
     fn fetch_u16(&mut self, addr: u16) -> u16 {
         (self.memory.fetch_absolute(addr) as u16)
-            + (self.memory.fetch_absolute(addr + 1) as u16 * 256)
+            + (self.memory.fetch_absolute(addr.wrapping_add(1)) as u16 * 256)
     }
 
     /*
@@ -2891,21 +2891,21 @@ impl Cpu {
             ($self:ident, $method:ident) => {{
                 let value = $self
                     .memory
-                    .fetch_absolute($self.registers.program_counter + 1);
+                    .fetch_absolute($self.registers.program_counter.wrapping_add(1));
                 ($self.$method(value), 2)
             }};
         }
 
         macro_rules! handle_opcode_threebytes {
             ($self:ident, $method:ident) => {{
-                let value = self.fetch_u16($self.registers.program_counter + 1);
+                let value = self.fetch_u16($self.registers.program_counter.wrapping_add(1));
                 ($self.$method(value), 3)
             }};
         }
 
         macro_rules! handle_opcode_jump {
             ($self:ident, $method:ident) => {{
-                let value = self.fetch_u16($self.registers.program_counter + 1);
+                let value = self.fetch_u16($self.registers.program_counter.wrapping_add(1));
                 ($self.$method(value.into()), 0)
             }};
         }
@@ -3186,6 +3186,6 @@ impl Cpu {
         );
         let (cycles, bytes) = self.decode_execute(opcode);
         self.num_cycles += cycles as usize;
-        self.registers.program_counter += bytes as u16;
+        self.registers.program_counter = self.registers.program_counter.wrapping_add(bytes as u16);
     }
 }

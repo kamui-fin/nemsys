@@ -1,7 +1,9 @@
 use anyhow::Result;
 use serde::Deserialize;
 use std::io::{BufRead, BufReader};
+use std::iter::Skip;
 use std::path::Path;
+use std::vec::IntoIter;
 use std::{
     fmt,
     fs::{self, File},
@@ -21,6 +23,7 @@ pub struct CpuTestState {
     pub x: u8,
     pub y: u8,
     pub p: u8,
+    pub pc: u16,
     pub ram: Vec<MemTest>,
 }
 
@@ -32,14 +35,43 @@ pub struct InstructionTestCase {
     pub cycles: Vec<DatabusLog>,
 }
 
-pub fn load_json_tests(dir_path: &str) -> Result<Vec<InstructionTestCase>> {
-    let unimplemented_opcodes: Vec<u8> = vec![
-        0x4B, 0x0B, 0x2B, 0x8B, 0x6B, 0xBB, 0xAB, 0xCB, 0x9F, 0x93, 0x9E, 0x9C, 0x9B, 0x1A, 0x3A,
-        0x5A, 0x7A, 0xDA, 0xFA, 0x80, 0x82, 0x89, 0xC2, 0xE2, 0x04, 0x44, 0x64, 0x14, 0x34, 0x54,
-        0x74, 0xD4, 0xF4, 0x0C, 0x1C, 0x3C, 0x5C, 0x7C, 0xDC, 0xFC, 0x02, 0x12, 0x22, 0x32, 0x42,
-        0x52, 0x62, 0x72, 0x92, 0xB2, 0xD2, 0xF2,
-    ];
-    let mut all_tests = vec![];
+pub struct TestCaseIterator<I> {
+    json_file_it: I,
+}
+
+pub struct TestCaseSet {
+    pub opcode: u8,
+    pub test_cases: Vec<InstructionTestCase>,
+}
+
+impl<I: Iterator<Item = PathBuf>> Iterator for TestCaseIterator<I> {
+    type Item = TestCaseSet;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.json_file_it.next().map(|path| {
+            let unimplemented_opcodes: Vec<u8> = vec![
+                0x4B, 0x0B, 0x2B, 0x8B, 0x6B, 0xBB, 0xAB, 0xCB, 0x9F, 0x93, 0x9E, 0x9C, 0x9B, 0x1A,
+                0x3A, 0x5A, 0x7A, 0xDA, 0xFA, 0x80, 0x82, 0x89, 0xC2, 0xE2, 0x04, 0x44, 0x64, 0x14,
+                0x34, 0x54, 0x74, 0xD4, 0xF4, 0x0C, 0x1C, 0x3C, 0x5C, 0x7C, 0xDC, 0xFC, 0x02, 0x12,
+                0x22, 0x32, 0x42, 0x52, 0x62, 0x72, 0x92, 0xB2, 0xD2, 0xF2,
+            ];
+            let stem = path.file_stem().unwrap();
+            let base_filename = stem.to_string_lossy();
+            let opcode: u8 = u8::from_str_radix(&base_filename, 16).unwrap();
+            if unimplemented_opcodes.contains(&opcode) {
+                return TestCaseSet {
+                    opcode,
+                    test_cases: vec![],
+                };
+            }
+            let json_text = fs::read_to_string(&path).unwrap();
+            let test_cases: Vec<InstructionTestCase> = serde_json::from_str(&json_text).unwrap();
+            TestCaseSet { opcode, test_cases }
+        })
+    }
+}
+
+pub fn load_json_tests(dir_path: &str) -> Result<TestCaseIterator<Skip<IntoIter<PathBuf>>>> {
     let entries = fs::read_dir(dir_path)?;
     let mut paths: Vec<PathBuf> = entries
         .filter_map(|entry| entry.ok().map(|e| e.path()))
@@ -68,25 +100,7 @@ pub fn load_json_tests(dir_path: &str) -> Result<Vec<InstructionTestCase>> {
         0
     };
 
-    println!("Starting from {target_index}");
-
-    for path in &paths[target_index..target_index + 2] {
-        if !path.is_file() {
-            continue;
-        }
-        if let Some(stem) = path.file_stem() {
-            let base_filename = stem.to_string_lossy();
-            let opcode: u8 = u8::from_str_radix(&base_filename, 16)?;
-            println!("Loading {:x}.json", opcode);
-
-            if unimplemented_opcodes.contains(&opcode) {
-                continue;
-            }
-            let json_text = fs::read_to_string(&path)?;
-            let test_cases: Vec<InstructionTestCase> = serde_json::from_str(&json_text)?;
-            all_tests.extend(test_cases);
-        }
-    }
-
-    Ok(all_tests)
+    Ok(TestCaseIterator {
+        json_file_it: paths.into_iter().skip(target_index),
+    })
 }

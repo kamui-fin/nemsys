@@ -5,12 +5,14 @@
 extern crate log;
 extern crate simplelog;
 
+use jsontest::{CpuTestState, InstructionTestCase, MemTest};
 use std::fs::File;
 use std::io::{self, Write};
+use std::panic;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cpu::Cpu;
 use simplelog::*;
 
@@ -19,7 +21,41 @@ mod jsontest;
 mod memory;
 mod registers;
 
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "nemsys")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Test {
+        #[command(subcommand)]
+        subcommand: TestSubcommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum TestSubcommand {
+    Nestest,
+    Singlestep,
+}
+
 fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    match &cli.command {
+        Commands::Test { subcommand } => match subcommand {
+            TestSubcommand::Nestest => run_nestest(),
+            TestSubcommand::Singlestep => run_single_step_tests(),
+        },
+    }
+}
+
+fn run_nestest() -> Result<()> {
     CombinedLogger::init(vec![
         TermLogger::new(
             LevelFilter::Info,
@@ -45,7 +81,7 @@ fn main() -> Result<()> {
 
     let target_period = (1.0 / (1.789773 * 1e6)) * 1e9;
 
-    loop {
+    while cpu.num_cycles < 270_000 {
         cpu.tick();
         cpu.memory.databus_logger.clear();
 
@@ -59,91 +95,74 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use std::panic;
+fn run_single_step_tests() -> Result<()> {
+    CombinedLogger::init(vec![TermLogger::new(
+        LevelFilter::Error,
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )])
+    .unwrap();
 
-    use jsontest::{CpuTestState, InstructionTestCase, MemTest};
+    let all_tests = jsontest::load_json_tests("nes6502/v1")?.enumerate();
 
-    use super::*;
-
-    #[test]
-    fn test_cpu() {
-        CombinedLogger::init(vec![TermLogger::new(
-            LevelFilter::Info,
-            Config::default(),
-            TerminalMode::Mixed,
-            ColorChoice::Auto,
-        )])
-        .unwrap();
-
-        let all_tests = jsontest::load_json_tests("nes6502/v1").unwrap();
-
-        let iter = all_tests.iter().enumerate();
-        for (i, case) in iter {
+    for (i, case_set) in all_tests {
+        let num_cases = case_set.test_cases.len();
+        for case in case_set.test_cases {
             let result = panic::catch_unwind(|| {
                 test_instruction(case.clone());
             });
-            let mut checkpoint_file = File::create("/tmp/nemsys.ck").unwrap();
-            writeln!(
-                checkpoint_file,
-                "{}",
-                case.name.split_whitespace().collect::<Vec<&str>>()[0]
-            )
-            .unwrap();
             if let Err(_) = result {
-                error!("Passed {}/{} test cases", i + 1, all_tests.len());
                 error!("{:#?}", case);
-
-                panic!();
+                error!("{:x}.................... [FAILED]", case_set.opcode);
+                error!("Passed {}/{} test cases", i + 1, num_cases);
+                return Err(anyhow!(case.name));
             }
         }
+
+        println!("{:x}.................... [PASSED]", case_set.opcode);
+        let mut checkpoint_file = File::create("/tmp/nemsys.ck").unwrap();
+        writeln!(checkpoint_file, "{}", format!("{:x}", case_set.opcode)).unwrap();
     }
 
-    fn init_cpu_test_state(state: CpuTestState, cpu: &mut Cpu) {
-        cpu.registers.stack_pointer = state.s;
-        cpu.registers.accumulator = state.a;
-        cpu.registers.index_x = state.x;
-        cpu.registers.index_y = state.y;
-        cpu.registers.processor_status = state.p;
+    Ok(())
+}
 
-        for MemTest(address, value) in state.ram {
-            cpu.memory.store_absolute(address, value);
-        }
+fn init_cpu_test_state(state: CpuTestState, cpu: &mut Cpu) {
+    cpu.registers.stack_pointer = state.s;
+    cpu.registers.accumulator = state.a;
+    cpu.registers.index_x = state.x;
+    cpu.registers.index_y = state.y;
+    cpu.registers.processor_status = state.p;
+    cpu.registers.program_counter = state.pc;
+
+    for MemTest(address, value) in state.ram {
+        cpu.memory.store_absolute(address, value);
     }
+}
 
-    fn assert_cpu_test_state(state: CpuTestState, cpu: &Cpu) {
-        assert_eq!(cpu.registers.stack_pointer, state.s);
-        assert_eq!(cpu.registers.accumulator, state.a);
-        assert_eq!(cpu.registers.index_x, state.x);
-        assert_eq!(cpu.registers.index_y, state.y);
-        assert_eq!(cpu.registers.processor_status, state.p);
+fn assert_cpu_test_state(state: CpuTestState, cpu: &Cpu) {
+    assert_eq!(cpu.registers.stack_pointer, state.s);
+    assert_eq!(cpu.registers.accumulator, state.a);
+    assert_eq!(cpu.registers.index_x, state.x);
+    assert_eq!(cpu.registers.index_y, state.y);
+    assert_eq!(cpu.registers.processor_status, state.p);
+    assert_eq!(cpu.registers.program_counter, state.pc);
 
-        for MemTest(address, value) in state.ram {
-            assert_eq!(cpu.memory.buffer[address as usize], value);
-        }
+    for MemTest(address, value) in state.ram {
+        assert_eq!(cpu.memory.buffer[address as usize], value);
     }
+}
 
-    fn test_instruction(case: InstructionTestCase) {
-        let mut cpu = Cpu::new();
-        cpu.init_pc(); // set to 0xC000
+fn test_instruction(case: InstructionTestCase) {
+    let mut cpu = Cpu::new();
 
-        let mem = &mut cpu.memory;
+    let initial_state = case.initial;
+    init_cpu_test_state(initial_state.clone(), &mut cpu);
 
-        let ins_data: Vec<u8> = case
-            .name
-            .split_whitespace()
-            .map(|s| u8::from_str_radix(s, 16).unwrap())
-            .collect();
+    cpu.tick();
 
-        mem.buffer[0xC000..(0xC000 + ins_data.len())].copy_from_slice(&ins_data);
-
-        init_cpu_test_state(case.initial, &mut cpu);
-        cpu.tick();
-
-        let final_state = case.r#final;
-
-        assert_cpu_test_state(final_state, &cpu); // assert after
-                                                  // assert_eq!(cpu.memory.databus_logger.log, case.cycles);
-    }
+    let final_state = case.r#final;
+    assert_cpu_test_state(final_state, &cpu); // assert after
+                                              // assert_eq!(cpu.memory.databus_logger.log, case.cycles);
 }

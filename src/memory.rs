@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::error;
 use std::{fs::File, io::Read};
 
 use crate::jsontest::DatabusLog;
@@ -149,7 +150,6 @@ impl Memory {
         let addr =
             addr.wrapping_add(self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256);
         let addr = addr.wrapping_add(index_y as u16);
-
         self.store_absolute(addr, value);
     }
 

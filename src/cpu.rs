@@ -768,14 +768,14 @@ impl Cpu {
     }
 
     // Helper
-    fn rol_indirect_y(&mut self, addr_lower_byte: u8) {
+    fn rol_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
         let value_after_rol = self.rol_immediate(value);
-        error!("{value} -> {value_after_rol}");
         self.memory
             .store_indirect_y(addr_lower_byte, self.registers.index_y, value_after_rol);
+        value_after_rol
     }
 
     /*
@@ -1260,7 +1260,6 @@ impl Cpu {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
-        error!("{value} AND {}", self.registers.accumulator);
 
         self.and_immediate(value);
 
@@ -2345,8 +2344,9 @@ impl Cpu {
     // Opcode: $33
     // Cycles: 8
     fn rla_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
-        self.rol_indirect_y(addr_lower_byte);
-        self.and_indirect_y(addr_lower_byte);
+        let value = self.rol_indirect_y(addr_lower_byte);
+        // TODO: (BUG) In some cases, you cannot read the same address after store_indirect_{x,y} if the addr_lower_byte is modified itself
+        self.and_immediate(value);
 
         8
     }
@@ -2748,10 +2748,12 @@ impl Cpu {
             .memory
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x)
             .wrapping_add(1);
+
+        // TODO: (BUG) In some cases, you cannot read the same address after store_indirect_{x,y} if the addr_lower_byte is modified itself
         self.memory
             .store_indirect_x(addr_lower_byte, self.registers.index_x, value);
 
-        self.sbc_indirect_x(addr_lower_byte);
+        self.sbc_immediate(value);
 
         8
     }

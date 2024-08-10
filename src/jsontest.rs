@@ -77,7 +77,6 @@ pub fn load_json_tests(dir_path: &str) -> Result<TestCaseIterator<Skip<IntoIter<
         .filter_map(|entry| entry.ok().map(|e| e.path()))
         .collect::<Vec<_>>();
     paths.sort();
-    paths.reverse();
 
     let target_index = if Path::new("/tmp/nemsys.ck").exists() {
         let file = File::open("/tmp/nemsys.ck")?;

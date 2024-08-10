@@ -772,9 +772,10 @@ impl Cpu {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
-        let value = self.rol_immediate(value);
+        let value_after_rol = self.rol_immediate(value);
+        error!("{value} -> {value_after_rol}");
         self.memory
-            .store_indirect_y(addr_lower_byte, self.registers.index_y, value);
+            .store_indirect_y(addr_lower_byte, self.registers.index_y, value_after_rol);
     }
 
     /*
@@ -1259,6 +1260,7 @@ impl Cpu {
         let value = self
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
+        error!("{value} AND {}", self.registers.accumulator);
 
         self.and_immediate(value);
 
@@ -1713,7 +1715,11 @@ impl Cpu {
      */
     fn bcc(&mut self, offset: u8) -> u8 {
         if self.registers.get_carry() == 0 {
-            self.registers.program_counter += offset as u16;
+            // self.registers.program_counter += offset as u16;
+            self.registers.program_counter = self
+                .registers
+                .program_counter
+                .wrapping_add_signed(offset as i8 as i16);
             3
         } else {
             2
@@ -1729,7 +1735,11 @@ impl Cpu {
      */
     fn bcs(&mut self, offset: u8) -> u8 {
         if self.registers.get_carry() > 0 {
-            self.registers.program_counter += offset as u16;
+            // self.registers.program_counter += offset as u16;
+            self.registers.program_counter = self
+                .registers
+                .program_counter
+                .wrapping_add_signed(offset as i8 as i16);
             3
         } else {
             2
@@ -1745,7 +1755,12 @@ impl Cpu {
      */
     fn beq(&mut self, offset: u8) -> u8 {
         if self.registers.get_zero() > 0 {
-            self.registers.program_counter += offset as u16;
+            // self.registers.program_counter += offset as u16;
+            self.registers.program_counter = self
+                .registers
+                .program_counter
+                .wrapping_add_signed(offset as i8 as i16);
+
             3
         } else {
             2
@@ -1761,7 +1776,11 @@ impl Cpu {
      */
     fn bmi(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() > 0 {
-            self.registers.program_counter += offset as u16;
+            // self.registers.program_counter += offset as u16;
+            self.registers.program_counter = self
+                .registers
+                .program_counter
+                .wrapping_add_signed(offset as i8 as i16);
             3
         } else {
             2
@@ -1796,7 +1815,11 @@ impl Cpu {
      */
     fn bpl(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() == 0 {
-            self.registers.program_counter += offset as u16;
+            // self.registers.program_counter += offset as u16;
+            self.registers.program_counter = self
+                .registers
+                .program_counter
+                .wrapping_add_signed(offset as i8 as i16);
             3
         } else {
             2
@@ -1812,7 +1835,11 @@ impl Cpu {
      */
     fn bvc(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() == 0 {
-            self.registers.program_counter += offset as u16;
+            // self.registers.program_counter += offset as u16;
+            self.registers.program_counter = self
+                .registers
+                .program_counter
+                .wrapping_add_signed(offset as i8 as i16);
             3
         } else {
             2
@@ -1828,7 +1855,11 @@ impl Cpu {
      */
     fn bvs(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() > 0 {
-            self.registers.program_counter += offset as u16;
+            // self.registers.program_counter += offset as u16;
+            self.registers.program_counter = self
+                .registers
+                .program_counter
+                .wrapping_add_signed(offset as i8 as i16);
             3
         } else {
             2
@@ -1903,7 +1934,7 @@ impl Cpu {
     // Opcode: $91
     // Cycles: 6
     fn sta_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
-        self.memory.store_indirect_x(
+        self.memory.store_indirect_y(
             addr_lower_byte,
             self.registers.index_y,
             self.registers.accumulator,
@@ -2163,11 +2194,11 @@ impl Cpu {
      */
 
     fn brk_implied(&mut self) -> u8 {
-        let pc_high = ((self.registers.program_counter + 1) >> 8) as u8;
+        let pc_high = ((self.registers.program_counter + 2) >> 8) as u8;
         self.stack_push(pc_high);
 
         // Push low byte
-        let pc_low = ((self.registers.program_counter + 1) & 0xFF) as u8;
+        let pc_low = ((self.registers.program_counter + 2) & 0xFF) as u8;
         self.stack_push(pc_low);
 
         self.stack_push(self.registers.processor_status | 0x10);
@@ -2175,10 +2206,10 @@ impl Cpu {
         let irq_vector_low = self.memory.fetch_absolute(0xFFFE) as u16;
         let irq_vector_high = self.memory.fetch_absolute(0xFFFF) as u16;
         let irq_vector = irq_vector_low | (irq_vector_high << 8);
-        debug!("Going to irq {irq_vector}");
         self.registers.program_counter = irq_vector;
 
-        self.registers.set_break();
+        // self.registers.set_break();
+        self.registers.set_interrupt_disable();
 
         7
     }
@@ -2212,6 +2243,8 @@ impl Cpu {
 
         let pc = (pc_high << 8) | pc_low;
         self.registers.program_counter = pc;
+
+        self.registers.unset_break();
 
         6
     }

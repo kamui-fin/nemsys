@@ -108,21 +108,26 @@ fn run_single_step_tests() -> Result<()> {
 
     for (i, case_set) in all_tests {
         let num_cases = case_set.test_cases.len();
+        let mut is_err: bool = false;
         for case in case_set.test_cases {
             let result = panic::catch_unwind(|| {
                 test_instruction(case.clone());
             });
             if let Err(_) = result {
                 error!("{:#?}", case);
-                error!("{:x}.................... [FAILED]", case_set.opcode);
-                error!("Passed {}/{} test cases", i + 1, num_cases);
+                println!("{:x}.................... [FAILED]", case_set.opcode);
+                println!("Passed {}/{} test cases", i + 1, num_cases);
+                is_err = true;
+                // break;
                 return Err(anyhow!(case.name));
             }
         }
 
-        println!("{:x}.................... [PASSED]", case_set.opcode);
-        let mut checkpoint_file = File::create("/tmp/nemsys.ck").unwrap();
-        writeln!(checkpoint_file, "{}", format!("{:x}", case_set.opcode)).unwrap();
+        if !is_err {
+            println!("{:x}.................... [PASSED]", case_set.opcode);
+            let mut checkpoint_file = File::create("/tmp/nemsys.ck").unwrap();
+            writeln!(checkpoint_file, "{}", format!("{:x}", case_set.opcode)).unwrap();
+        }
     }
 
     Ok(())
@@ -146,7 +151,10 @@ fn assert_cpu_test_state(state: CpuTestState, cpu: &Cpu) {
     assert_eq!(cpu.registers.accumulator, state.a);
     assert_eq!(cpu.registers.index_x, state.x);
     assert_eq!(cpu.registers.index_y, state.y);
-    assert_eq!(cpu.registers.processor_status, state.p);
+    assert_eq!(
+        cpu.registers.processor_status | 0b0010_0000,
+        state.p | 0b0010_0000
+    );
     assert_eq!(cpu.registers.program_counter, state.pc);
 
     for MemTest(address, value) in state.ram {

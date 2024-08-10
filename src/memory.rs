@@ -1,5 +1,4 @@
 use anyhow::Result;
-use clap::error;
 use std::{fs::File, io::Read};
 
 use crate::jsontest::DatabusLog;
@@ -92,8 +91,7 @@ impl Memory {
     // also called for absolute_y
     pub(crate) fn fetch_absolute_x(&mut self, address: u16, index_x: u8) -> u8 {
         let address = address.wrapping_add(index_x as u16);
-        let value = self.fetch_absolute(address);
-        value
+        self.fetch_absolute(address)
     }
 
     // also called for absolute_y
@@ -104,8 +102,7 @@ impl Memory {
 
     pub(crate) fn fetch_zero_page(&mut self, addr_lower_byte: u8) -> u8 {
         let address = addr_lower_byte as u16;
-        let value = self.fetch_absolute(address);
-        value
+        self.fetch_absolute(address)
     }
 
     pub(crate) fn store_zero_page(&mut self, addr_lower_byte: u8, value: u8) {
@@ -116,8 +113,7 @@ impl Memory {
     // also called for zero_page_y
     pub(crate) fn fetch_zero_page_x(&mut self, addr_lower_byte: u8, index_x: u8) -> u8 {
         let address = addr_lower_byte.wrapping_add(index_x);
-        let value = self.fetch_zero_page(address);
-        value
+        self.fetch_zero_page(address)
     }
 
     pub(crate) fn store_zero_page_x(&mut self, addr_lower_byte: u8, x: u8, value: u8) {

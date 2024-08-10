@@ -32,7 +32,8 @@ pub struct InstructionTestCase {
     pub name: String,
     pub initial: CpuTestState,
     pub r#final: CpuTestState,
-    pub cycles: Vec<DatabusLog>,
+    // atm, not sure if we want to be comparing all the cycles
+    // pub cycles: Vec<DatabusLog>,
 }
 
 pub struct TestCaseIterator<I> {
@@ -78,13 +79,14 @@ pub fn load_json_tests(dir_path: &str) -> Result<TestCaseIterator<Skip<IntoIter<
         .collect::<Vec<_>>();
     paths.sort();
 
+    // Checkpointing b/c there's 1gb of tests in total to load
     let target_index = if Path::new("/tmp/nemsys.ck").exists() {
         let file = File::open("/tmp/nemsys.ck")?;
         let mut reader = BufReader::new(file);
         let mut line = String::new();
         reader.read_line(&mut line)?;
         let checkpoint_ins = line.trim();
-        println!("Starting from {}", checkpoint_ins);
+        println!("Picking up from from {}", checkpoint_ins);
 
         paths
             .iter()

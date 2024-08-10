@@ -265,18 +265,11 @@ impl Cpu {
 
         let result = self.registers.accumulator.wrapping_sub(value);
 
-        // POTENTIAL BUG: do we set bit 7 to neg flag directly or only if neg?
         if result & 0b1000_0000 > 0 {
             self.registers.set_neg();
         } else {
             self.registers.unset_neg();
         }
-
-        // if self.registers.accumulator < value {
-        //     self.registers.set_neg();
-        // } else {
-        //     self.registers.unset_neg();
-        // }
 
         2
     }
@@ -580,10 +573,7 @@ impl Cpu {
             self.registers.unset_zero();
         }
 
-        // Not really necessary as bit 7 will be 0
-        /* if new_value & 0b1000_000 == 1 {
-            self.registers.set_neg()
-        } */
+        // Not really necessary to check if we need to set_neg() as bit 7 will ALWAYS be 0
         self.registers.unset_neg();
 
         new_value
@@ -747,7 +737,6 @@ impl Cpu {
         7
     }
 
-    // Helper
     fn rol_absolute_y(&mut self, address: u16) {
         let value = self
             .memory
@@ -757,7 +746,6 @@ impl Cpu {
             .store_absolute_x(address, self.registers.index_y, value);
     }
 
-    // Helper
     fn rol_indirect_x(&mut self, addr_lower_byte: u8) {
         let value = self
             .memory
@@ -767,7 +755,6 @@ impl Cpu {
             .store_indirect_x(addr_lower_byte, self.registers.index_x, value);
     }
 
-    // Helper
     fn rol_indirect_y(&mut self, addr_lower_byte: u8) -> u8 {
         let value = self
             .memory
@@ -902,7 +889,6 @@ impl Cpu {
     // 2 cycles
     fn lda_immediate(&mut self, value: u8) -> u8 {
         self.registers.accumulator = value;
-        // TODO: confirm if AFTER
         self.update_zero_negative_flags(self.registers.accumulator);
 
         2
@@ -1694,7 +1680,6 @@ impl Cpu {
      *   Cycles: 6
      */
     fn jsr(&mut self, address: u16) -> u8 {
-        // BUG: Not sure about this +2 offset..
         let pc_high = ((self.registers.program_counter + 2) >> 8) as u8;
         let pc_low = ((self.registers.program_counter + 2) & 0xFF) as u8;
         self.stack_push(pc_high);
@@ -1714,7 +1699,6 @@ impl Cpu {
      */
     fn bcc(&mut self, offset: u8) -> u8 {
         if self.registers.get_carry() == 0 {
-            // self.registers.program_counter += offset as u16;
             self.registers.program_counter = self
                 .registers
                 .program_counter
@@ -1734,7 +1718,6 @@ impl Cpu {
      */
     fn bcs(&mut self, offset: u8) -> u8 {
         if self.registers.get_carry() > 0 {
-            // self.registers.program_counter += offset as u16;
             self.registers.program_counter = self
                 .registers
                 .program_counter
@@ -1754,7 +1737,6 @@ impl Cpu {
      */
     fn beq(&mut self, offset: u8) -> u8 {
         if self.registers.get_zero() > 0 {
-            // self.registers.program_counter += offset as u16;
             self.registers.program_counter = self
                 .registers
                 .program_counter
@@ -1775,7 +1757,6 @@ impl Cpu {
      */
     fn bmi(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() > 0 {
-            // self.registers.program_counter += offset as u16;
             self.registers.program_counter = self
                 .registers
                 .program_counter
@@ -1814,7 +1795,6 @@ impl Cpu {
      */
     fn bpl(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() == 0 {
-            // self.registers.program_counter += offset as u16;
             self.registers.program_counter = self
                 .registers
                 .program_counter
@@ -1834,7 +1814,6 @@ impl Cpu {
      */
     fn bvc(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() == 0 {
-            // self.registers.program_counter += offset as u16;
             self.registers.program_counter = self
                 .registers
                 .program_counter
@@ -1854,7 +1833,6 @@ impl Cpu {
      */
     fn bvs(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() > 0 {
-            // self.registers.program_counter += offset as u16;
             self.registers.program_counter = self
                 .registers
                 .program_counter
@@ -2566,7 +2544,6 @@ impl Cpu {
         self.memory
             .store_indirect_x(addr_lower_byte, self.registers.index_x, value);
 
-        // self.update_zero_negative_flags(value);
         6
     }
 
@@ -2576,7 +2553,6 @@ impl Cpu {
         let value = self.registers.index_x & self.registers.accumulator;
         self.memory.store_zero_page(addr_lower_byte, value);
 
-        // self.update_zero_negative_flags(value);
         3
     }
 
@@ -2586,7 +2562,6 @@ impl Cpu {
         let value = self.registers.index_x & self.registers.accumulator;
         self.memory.store_absolute(address, value);
 
-        // self.update_zero_negative_flags(value);
         4
     }
 
@@ -2596,8 +2571,6 @@ impl Cpu {
         let value = self.registers.index_x & self.registers.accumulator;
         self.memory
             .store_zero_page_x(addr_lower_byte, self.registers.index_y, value);
-
-        // self.update_zero_negative_flags(value);
         4
     }
 
@@ -2616,11 +2589,6 @@ impl Cpu {
             .store_indirect_x(addr_lower_byte, self.registers.index_x, value);
 
         self.cmp_indirect_x(addr_lower_byte);
-        // if self.registers.accumulator >= value {
-        //     self.registers.set_carry();
-        // } else {
-        //     self.registers.unset_carry();
-        // }
 
         8
     }
@@ -2636,11 +2604,6 @@ impl Cpu {
             .store_indirect_y(addr_lower_byte, self.registers.index_y, value);
 
         self.cmp_indirect_y(addr_lower_byte);
-        // if self.registers.accumulator >= value {
-        //     self.registers.set_carry();
-        // } else {
-        //     self.registers.unset_carry();
-        // }
 
         8
     }
@@ -2652,11 +2615,6 @@ impl Cpu {
         self.memory.store_zero_page(addr_lower_byte, value);
 
         self.cmp_zero_page(addr_lower_byte);
-        // if self.registers.accumulator >= value {
-        //     self.registers.set_carry();
-        // } else {
-        //     self.registers.unset_carry();
-        // }
 
         5
     }
@@ -2672,11 +2630,6 @@ impl Cpu {
             .store_zero_page_x(addr_lower_byte, self.registers.index_x, value);
 
         self.cmp_zero_page_x(addr_lower_byte);
-        // if self.registers.accumulator >= value {
-        //     self.registers.set_carry();
-        // } else {
-        //     self.registers.unset_carry();
-        // }
 
         6
     }
@@ -2688,11 +2641,6 @@ impl Cpu {
         self.memory.store_absolute(address, value);
 
         self.cmp_absolute(address);
-        // if self.registers.accumulator >= value {
-        //     self.registers.set_carry();
-        // } else {
-        //     self.registers.unset_carry();
-        // }
 
         6
     }
@@ -2708,11 +2656,6 @@ impl Cpu {
             .store_absolute_x(address, self.registers.index_x, value);
 
         self.cmp_absolute_x(address);
-        // if self.registers.accumulator >= value {
-        //     self.registers.set_carry();
-        // } else {
-        //     self.registers.unset_carry();
-        // }
 
         7
     }
@@ -2728,11 +2671,6 @@ impl Cpu {
             .store_absolute_x(address, self.registers.index_y, value);
 
         self.cmp_absolute_y(address);
-        // if self.registers.accumulator >= value {
-        //     self.registers.set_carry();
-        // } else {
-        //     self.registers.unset_carry();
-        // }
 
         7
     }

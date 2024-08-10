@@ -7,7 +7,7 @@ extern crate simplelog;
 
 use jsontest::{CpuTestState, InstructionTestCase, MemTest};
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::Write;
 use std::panic;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
@@ -108,26 +108,21 @@ fn run_single_step_tests() -> Result<()> {
 
     for (i, case_set) in all_tests {
         let num_cases = case_set.test_cases.len();
-        let mut is_err: bool = false;
         for case in case_set.test_cases {
             let result = panic::catch_unwind(|| {
                 test_instruction(case.clone());
             });
-            if let Err(_) = result {
+            if result.is_err() {
                 error!("{:#?}", case);
                 println!("{:x}.................... [FAILED]", case_set.opcode);
                 println!("Passed {}/{} test cases", i + 1, num_cases);
-                is_err = true;
-                // break;
                 return Err(anyhow!(case.name));
             }
         }
 
-        if !is_err {
-            println!("{:x}.................... [PASSED]", case_set.opcode);
-            let mut checkpoint_file = File::create("/tmp/nemsys.ck").unwrap();
-            writeln!(checkpoint_file, "{}", format!("{:x}", case_set.opcode)).unwrap();
-        }
+        println!("{:x}.................... [PASSED]", case_set.opcode);
+        let mut checkpoint_file = File::create("/tmp/nemsys.ck").unwrap();
+        writeln!(checkpoint_file, "{:x}", case_set.opcode).unwrap();
     }
 
     Ok(())

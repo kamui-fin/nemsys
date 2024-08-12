@@ -3229,15 +3229,15 @@ impl Cpu {
         let opcode = self.memory.fetch_absolute(self.registers.program_counter);
         let old_pc = self.registers.program_counter;
         info!(
-            // "{:02X}  {:04X}\t\t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:  0, 0 CYC:{}",
-            "{:02X}  {:04X}\t\t\tA:{:02X} CYC:{}",
+            "{:02X}  {:04X}\t\t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:  0, 0 CYC:{}",
+            // "{:02X}  {:04X}\t\t\tA:{:02X} CYC:{}",
             old_pc,
             opcode,
             self.registers.accumulator,
-            // self.registers.index_x,
-            // self.registers.index_y,
-            // self.registers.processor_status,
-            // self.registers.stack_pointer,
+            self.registers.index_x,
+            self.registers.index_y,
+            self.registers.processor_status,
+            self.registers.stack_pointer,
             self.num_cycles+7
         );
         let (cycles, bytes) = self.decode_execute(opcode);

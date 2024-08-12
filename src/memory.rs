@@ -143,8 +143,7 @@ impl Memory {
 
     pub(crate) fn store_indirect_y(&mut self, addr_lower_byte: u8, index_y: u8, value: u8) {
         let addr = self.fetch_zero_page(addr_lower_byte) as u16;
-        let addr =
-            addr.wrapping_add(self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256);
+        let addr = addr | ((self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16) << 8);
         let addr = addr.wrapping_add(index_y as u16);
         self.store_absolute(addr, value);
     }
@@ -152,8 +151,7 @@ impl Memory {
     pub(crate) fn fetch_indirect_y(&mut self, addr_lower_byte: u8, index_y: u8) -> u8 {
         // val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)
         let addr = self.fetch_zero_page(addr_lower_byte) as u16;
-        let addr =
-            addr.wrapping_add(self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16 * 256);
+        let addr = addr | ((self.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16) << 8);
         let addr = addr.wrapping_add(index_y as u16);
         self.fetch_absolute(addr)
     }

@@ -1,3 +1,5 @@
+use std::f32::consts::E;
+
 use crate::{memory, registers};
 
 pub struct Cpu {
@@ -20,6 +22,38 @@ impl Cpu {
         // self.registers.program_counter = self.memory.fetch_indirect(0xFFFC);
         self.registers.program_counter = 0xC000;
         info!("Initialize PC = {:x}", self.registers.program_counter);
+    }
+
+    fn check_absolute_x_page_cross(&mut self, base_address: u16) -> u8{
+        let abs_x_address = base_address.wrapping_add(self.registers.index_x as u16);
+
+        if (abs_x_address >> 8) != (base_address >> 8){
+            1
+        } else {
+            0
+        }
+    }
+
+    fn check_absolute_y_page_cross(&mut self, base_address: u16) -> u8{
+        let abs_y_address = base_address.wrapping_add(self.registers.index_y as u16);
+
+        if (abs_y_address >> 8) != (base_address >> 8){
+            1
+        } else {
+            0
+        }
+    }
+
+    fn check_indirect_y_page_cross(&mut self, addr_lower_byte: u8) -> u8{
+        let base_address = self.memory.fetch_zero_page(addr_lower_byte) as u16 | ((self.memory.fetch_zero_page(addr_lower_byte.wrapping_add(1)) as u16) << 8);
+        let base_address = base_address.wrapping_add(self.registers.index_y as u16);
+
+        if (base_address >> 8) as u8 != addr_lower_byte{
+            1
+        } else {
+            0
+        }
+
     }
 
     // Helper method
@@ -124,7 +158,7 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_x);
         self.adc_immediate(value);
 
-        4
+        4 + self.check_absolute_x_page_cross(address)
     }
 
     // Opcode: $79
@@ -135,7 +169,7 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_y);
         self.adc_immediate(value);
 
-        4
+        4 + self.check_absolute_y_page_cross(address)
     }
 
     // Opcode: $61
@@ -157,7 +191,7 @@ impl Cpu {
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
         self.adc_immediate(value);
 
-        5
+        5 + self.check_indirect_y_page_cross(addr_lower_byte)
     }
 
     /*
@@ -208,7 +242,9 @@ impl Cpu {
         let value = self
             .memory
             .fetch_absolute_x(address, self.registers.index_x);
-        self.sbc_immediate(value)
+        self.sbc_immediate(value);
+
+        4 + self.check_absolute_x_page_cross(address)
     }
 
     // Opcode: $F9
@@ -219,7 +255,7 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_y);
         self.sbc_immediate(value);
 
-        4
+        4 + self.check_absolute_y_page_cross(address)
     }
 
     // Opcode: $E1
@@ -230,7 +266,7 @@ impl Cpu {
             .fetch_indirect_x(addr_lower_byte, self.registers.index_x);
         self.sbc_immediate(value);
 
-        6
+        6 
     }
 
     // Opcode: $F1
@@ -241,7 +277,7 @@ impl Cpu {
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
         self.sbc_immediate(value);
 
-        5
+        5 + self.check_indirect_y_page_cross(addr_lower_byte)
     }
 
     /*
@@ -311,7 +347,7 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_x);
         self.cmp_immediate(value);
 
-        4
+        4 + self.check_absolute_x_page_cross(address)
     }
 
     // Opcode: $D9
@@ -322,7 +358,7 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_y);
         self.cmp_immediate(value);
 
-        4
+        4 + self.check_absolute_y_page_cross(address)
     }
 
     // Opcode: $C1
@@ -344,7 +380,7 @@ impl Cpu {
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
         self.cmp_immediate(value);
 
-        5
+        5 + self.check_indirect_y_page_cross(addr_lower_byte)
     }
 
     /*
@@ -931,7 +967,7 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_x);
         self.lda_immediate(value);
 
-        4
+        4 + self.check_absolute_x_page_cross(address)
     }
 
     // Opcode: $B9
@@ -942,7 +978,7 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_y);
         self.lda_immediate(value);
 
-        4
+        4 + self.check_absolute_y_page_cross(address)
     }
 
     // Opcode: $A1
@@ -964,7 +1000,8 @@ impl Cpu {
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
         self.lda_immediate(value);
 
-        5
+        5 + self.check_indirect_y_page_cross(addr_lower_byte)
+        // 5
     }
 
     /*
@@ -1000,7 +1037,7 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_y);
         self.ldx_immediate(value);
 
-        4
+        4 + self.check_absolute_y_page_cross(address)
     }
 
     // Opcode: $A6
@@ -1056,7 +1093,7 @@ impl Cpu {
             .fetch_absolute_x(address, self.registers.index_x);
         self.ldy_immediate(value);
 
-        4
+        4 + self.check_absolute_x_page_cross(address)
     }
 
     // Opcode: $A4
@@ -1213,7 +1250,7 @@ impl Cpu {
 
         self.and_immediate(value);
 
-        4
+        4 + self.check_absolute_x_page_cross(address)
     }
 
     // Opcode: $39
@@ -1225,7 +1262,7 @@ impl Cpu {
 
         self.and_immediate(value);
 
-        4
+        4 + self.check_absolute_y_page_cross(address)
     }
 
     // Opcode: $21
@@ -1249,7 +1286,8 @@ impl Cpu {
 
         self.and_immediate(value);
 
-        5
+        5 + self.check_indirect_y_page_cross(addr_lower_byte)
+        // 5
     }
 
     /*
@@ -1308,8 +1346,8 @@ impl Cpu {
 
         self.eor_immediate(value);
 
-        4
-    }
+        4 + self.check_absolute_x_page_cross(address)
+    } 
 
     // Opcode: $59
     // Cycles: 4 (+1 if page crossed)
@@ -1320,7 +1358,7 @@ impl Cpu {
 
         self.eor_immediate(value);
 
-        4
+        4 + self.check_absolute_y_page_cross(address)
     }
 
     // Opcode: $41
@@ -1344,7 +1382,8 @@ impl Cpu {
 
         self.eor_immediate(value);
 
-        5
+        5 + self.check_indirect_y_page_cross(addr_lower_byte)
+        // 5
     }
 
     /*
@@ -1403,7 +1442,7 @@ impl Cpu {
 
         self.ora_immediate(value);
 
-        4
+        4 + self.check_absolute_x_page_cross(address)
     }
 
     // Opcode: $19
@@ -1415,7 +1454,7 @@ impl Cpu {
 
         self.ora_immediate(value);
 
-        4
+        4 + self.check_absolute_y_page_cross(address)
     }
 
     // Opcode: $01
@@ -1439,7 +1478,8 @@ impl Cpu {
 
         self.ora_immediate(value);
 
-        5
+        5 + self.check_indirect_y_page_cross(addr_lower_byte)
+        // 5
     }
 
     /*
@@ -1699,11 +1739,16 @@ impl Cpu {
      */
     fn bcc(&mut self, offset: u8) -> u8 {
         if self.registers.get_carry() == 0 {
+            let original = self.registers.program_counter;
             self.registers.program_counter = self
                 .registers
                 .program_counter
                 .wrapping_add_signed(offset as i8 as i16);
-            3
+            if original >> 8 != self.registers.program_counter >> 8{
+                4
+            } else {
+                3
+            }
         } else {
             2
         }
@@ -1718,11 +1763,16 @@ impl Cpu {
      */
     fn bcs(&mut self, offset: u8) -> u8 {
         if self.registers.get_carry() > 0 {
+            let original = self.registers.program_counter;
             self.registers.program_counter = self
                 .registers
                 .program_counter
                 .wrapping_add_signed(offset as i8 as i16);
-            3
+            if original >> 8 != self.registers.program_counter >> 8{
+                4
+            } else {
+                3
+            }
         } else {
             2
         }
@@ -1737,11 +1787,17 @@ impl Cpu {
      */
     fn beq(&mut self, offset: u8) -> u8 {
         if self.registers.get_zero() > 0 {
+            let original = self.registers.program_counter;
             self.registers.program_counter = self
                 .registers
                 .program_counter
                 .wrapping_add_signed(offset as i8 as i16);
 
+            // if ((original >> 8 ) != (self.registers.program_counter >> 8)){
+            //     4
+            // } else {
+            //     3
+            // }
             3
         } else {
             2
@@ -1757,11 +1813,16 @@ impl Cpu {
      */
     fn bmi(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() > 0 {
+            let original = self.registers.program_counter;
             self.registers.program_counter = self
                 .registers
                 .program_counter
                 .wrapping_add_signed(offset as i8 as i16);
-            3
+            if original >> 8 != self.registers.program_counter >> 8{
+                4
+            } else {
+                3
+            }
         } else {
             2
         }
@@ -1776,11 +1837,16 @@ impl Cpu {
      */
     fn bne(&mut self, offset: u8) -> u8 {
         if self.registers.get_zero() == 0 {
+            let original = self.registers.program_counter;
             self.registers.program_counter = self
                 .registers
                 .program_counter
                 .wrapping_add_signed(offset as i8 as i16);
-            3
+            if original >> 8 != self.registers.program_counter >> 8{
+                4
+            } else {
+                3
+            }
         } else {
             2
         }
@@ -1795,11 +1861,16 @@ impl Cpu {
      */
     fn bpl(&mut self, offset: u8) -> u8 {
         if self.registers.get_neg() == 0 {
+            let original = self.registers.program_counter;
             self.registers.program_counter = self
                 .registers
                 .program_counter
                 .wrapping_add_signed(offset as i8 as i16);
-            3
+            if original >> 8 != self.registers.program_counter >> 8{
+                4
+            } else {
+                3
+            }
         } else {
             2
         }
@@ -1814,11 +1885,16 @@ impl Cpu {
      */
     fn bvc(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() == 0 {
+            let original = self.registers.program_counter;
             self.registers.program_counter = self
                 .registers
                 .program_counter
                 .wrapping_add_signed(offset as i8 as i16);
-            3
+            if original >> 8 != self.registers.program_counter >> 8{
+                4
+            } else {
+                3
+            }
         } else {
             2
         }
@@ -1833,11 +1909,16 @@ impl Cpu {
      */
     fn bvs(&mut self, offset: u8) -> u8 {
         if self.registers.get_overflow() > 0 {
+            let original = self.registers.program_counter;
             self.registers.program_counter = self
                 .registers
                 .program_counter
                 .wrapping_add_signed(offset as i8 as i16);
-            3
+            if original >> 8 != self.registers.program_counter >> 8{
+                4
+            } else {
+                3
+            }
         } else {
             2
         }
@@ -2801,7 +2882,7 @@ impl Cpu {
             .memory
             .fetch_indirect_y(addr_lower_byte, self.registers.index_y);
         self.ldx_immediate(val);
-        5
+        5 + self.check_indirect_y_page_cross(addr_lower_byte)
     }
 
     // Opcode: $A7
@@ -2836,7 +2917,8 @@ impl Cpu {
     fn lax_absolute_y(&mut self, address: u16) -> u8 {
         self.lda_absolute_y(address);
         self.ldx_absolute_y(address);
-        4
+        let val = self.memory.fetch_absolute_x(address, self.registers.index_x);
+        4 + self.check_absolute_y_page_cross(address)
     }
 
     fn fetch_u16(&mut self, addr: u16) -> u16 {
@@ -3147,15 +3229,16 @@ impl Cpu {
         let opcode = self.memory.fetch_absolute(self.registers.program_counter);
         let old_pc = self.registers.program_counter;
         info!(
-            "{:02X}  {:04X}\t\t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:  0, 0 CYC:{}",
+            // "{:02X}  {:04X}\t\t\tA:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:  0, 0 CYC:{}",
+            "{:02X}  {:04X}\t\t\tA:{:02X} CYC:{}",
             old_pc,
             opcode,
             self.registers.accumulator,
-            self.registers.index_x,
-            self.registers.index_y,
-            self.registers.processor_status,
-            self.registers.stack_pointer,
-            self.num_cycles
+            // self.registers.index_x,
+            // self.registers.index_y,
+            // self.registers.processor_status,
+            // self.registers.stack_pointer,
+            self.num_cycles+7
         );
         let (cycles, bytes) = self.decode_execute(opcode);
         self.num_cycles += cycles as usize;

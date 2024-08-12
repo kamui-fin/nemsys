@@ -18,7 +18,7 @@ def read_logs(file_path):
 
 def parse_emulator_log(line):
     match = re.match(
-        r".*\[INFO\] (\w+)\s+(\w+)\s+A:(\w+) X:(\w+) Y:(\w+) P:(\w+) SP:(\w+)", line
+        r".*\[INFO\] (\w+)\s+(\w+)\s+A:(\w+) X:(\w+) Y:(\w+) P:(\w+) SP:(\w+) PPU:\s*(\w+),(\w+) CYC:(\w+)", line
     )
     if match:
         return [int(i, 16) for i in match.groups()]
@@ -27,10 +27,11 @@ def parse_emulator_log(line):
 
 def parse_ground_truth_log(line):
     match = re.match(
-        r"(\w+)\s+(\w+)\s+.*\s+A:(\w+) X:(\w+) Y:(\w+) P:(\w+) SP:(\w+).*", line
+        r"(\w+)\s+(\w+)\s+.*\s+A:(\w+) X:(\w+) Y:(\w+) P:(\w+) SP:(\w+) PPU:\s*(\w+),\s*(\w+) CYC:(\w+)", line
     )
     if match:
         return [int(i, 16) for i in match.groups()]
+    
     return None
 
 
@@ -49,7 +50,7 @@ def compare_logs(emulator_logs, ground_truth_logs):
         if not emu_parsed:
             i += 1
             continue
-
+        
         if emu_parsed[-2] | 0x10 == gt_parsed[-2] | 0x10:
             emu_parsed[-2] = gt_parsed[-2]
 
@@ -59,7 +60,6 @@ def compare_logs(emulator_logs, ground_truth_logs):
                 ground_truth_logs[j - 1],
             )
             return (emu_log, gt_log)
-
         i += 1
         j += 1
     
@@ -71,7 +71,7 @@ def format_rust_log(s):
 def main():
     run_cargo_command()
     emulator_logs = read_logs("nemsys.log")
-    ground_truth_logs = read_logs("romtest/nestest.log")
+    ground_truth_logs = read_logs("nestest/nestest.log")
     error = compare_logs(emulator_logs, ground_truth_logs)
     if not error:
         print("No errors found!")

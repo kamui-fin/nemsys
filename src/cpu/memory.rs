@@ -1,8 +1,9 @@
 use anyhow::Result;
 use log::info;
 use std::{fs::File, io::Read};
+use ppu::memory::VRAM;
 
-use crate::cpu::jsontest::DatabusLog;
+use crate::{cpu::jsontest::DatabusLog, ppu};
 
 // WriteCallback: range -> fn
 // pointers into VRAM
@@ -15,7 +16,9 @@ pub struct DatabusLogger {
 
 impl DatabusLogger {
     pub fn new() -> Self {
-        Self { log: vec![] }
+        Self { 
+            log: vec![],
+        }
     }
 
     pub fn log_read(&mut self, address: u16, value: u8) {
@@ -24,7 +27,6 @@ impl DatabusLogger {
     }
 
     pub fn log_write(&mut self, address: u16, value: u8) {
-        // invoke WriteCallback.handle_callback(address, value)
         self.log
             .push(DatabusLog(address, value, "write".to_string()))
     }

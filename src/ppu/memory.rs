@@ -21,14 +21,35 @@
 /// $3000-3EFF is usually a mirror of the 2kB region from $2000-2EFF. The PPU does not render from this address range, so this space has negligible utility.
 /// $3F00-3FFF is not configurable, always mapped to the internal palette control.
 
-pub struct VRAM {
-    pub buffer: [u8; 0x4000],
+pub(crate) struct VRAM {
+    memory: [u8; 0x4000],
 }
 
 impl VRAM {
     pub fn new() -> Self {
         Self {
-            buffer: [0; 0x4000],
+            memory: [0; 0x4000],
         }
+    }
+
+    pub fn copy_into_memory(&mut self, buffer: &[u8], starting_address: usize){
+        for (i, &value) in buffer.iter().enumerate(){
+            let curr_addr = starting_address+i;
+            if curr_addr < self.memory.len(){
+                self.memory[curr_addr] = value;
+            }
+        }
+    }
+
+    pub fn get(&mut self, address: usize) -> u8{
+        self.memory[address]
+    }
+
+    pub fn set(&mut self, address: usize, value: u8){
+        self.memory[address] = value;
+    }
+
+    pub fn write_callback(&mut self, address: usize, value: u8){
+        
     }
 }

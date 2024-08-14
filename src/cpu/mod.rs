@@ -1,4 +1,8 @@
-use crate::{memory, registers};
+use log::info;
+
+pub mod jsontest;
+pub mod memory;
+pub mod registers;
 
 pub struct Cpu {
     pub memory: memory::Memory,

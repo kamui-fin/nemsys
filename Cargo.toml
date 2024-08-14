@@ -1,5 +1,5 @@
 [package]
-name = "xines"
+name = "nemsys"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,3 +12,5 @@ anyhow = "1.0"
 log = "0.4.22"
 simplelog = "0.12.2"
 clap = { version = "4.5.15", features = ["derive"] }
+sdl2 = "0.37.0"
+wasm-bindgen = "0.2.93"

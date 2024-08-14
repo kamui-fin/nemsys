@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head><title>Nemsys WASM</title></head>
+<body>
+
+<!-- The Module.canvas is where Emscripten renders our Rust game. -->
+<canvas id="canvas"></canvas>
+
+<script type="text/javascript">
+    // a "var" named "Module" is required by Emscripten
+    // see: https://emscripten.org/docs/api_reference/module.html
+    var Module = {canvas: document.getElementById('canvas')};
+</script>
+
+<!-- This is the code compiled by emscripten. -->
+<script type="text/javascript" src="target/wasm32-unknown-emscripten/debug/test_ppu.js"></script>
+
+</body>
+</html>

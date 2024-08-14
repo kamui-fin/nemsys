@@ -4,7 +4,9 @@ import re
 
 
 def run_cargo_command():
-    result = subprocess.run(["cargo", "run"], capture_output=True, text=True)
+    result = subprocess.run(
+        ["cargo", "run", "--bin", "test_cpu"], capture_output=True, text=True
+    )
     if result.returncode != 0:
         print(f"Error running 'cargo run': {result.stderr}")
         return None
@@ -62,7 +64,7 @@ def compare_logs(emulator_logs, ground_truth_logs):
 
         i += 1
         j += 1
-    
+
 
 def format_rust_log(s):
     return s

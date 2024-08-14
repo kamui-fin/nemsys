@@ -1,11 +1,9 @@
-/// xines - MOS 6502 instruction set implementation
-/// Clock speed: 1.789773 MHz
+// Testing out an NES 6502 implementation
 
 #[macro_use]
 extern crate log;
 extern crate simplelog;
 
-use jsontest::{CpuTestState, InstructionTestCase, MemTest};
 use std::fs::File;
 use std::io::Write;
 use std::panic;
@@ -13,15 +11,11 @@ use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 
 use anyhow::{anyhow, Result};
-use cpu::Cpu;
+use clap::{Parser, Subcommand};
 use simplelog::*;
 
-mod cpu;
-mod jsontest;
-mod memory;
-mod registers;
-
-use clap::{Parser, Subcommand};
+use nemsys::cpu::jsontest::{self, CpuTestState, InstructionTestCase, MemTest};
+use nemsys::cpu::Cpu;
 
 #[derive(Parser)]
 #[command(name = "nemsys")]

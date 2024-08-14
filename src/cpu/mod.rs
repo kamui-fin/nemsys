@@ -1,4 +1,7 @@
+use std::sync::mpsc::Sender;
+
 use log::info;
+use memory::MemoryWriteLog;
 
 pub mod jsontest;
 pub mod memory;
@@ -12,9 +15,9 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new() -> Self {
+    pub fn new(cpu_channel_tx: Sender<MemoryWriteLog>) -> Self {
         Self {
-            memory: memory::Memory::new(),
+            memory: memory::Memory::new(cpu_channel_tx),
             registers: registers::Registers::new(),
             num_cycles: 0,
         }

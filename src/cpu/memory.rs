@@ -1,6 +1,6 @@
 use anyhow::Result;
 use log::info;
-use std::{fs::File, io::Read};
+use std::{fs::File, io::Read, sync::mpsc::Sender};
 use ppu::memory::VRAM;
 
 use crate::{cpu::jsontest::DatabusLog, ppu};
@@ -9,6 +9,11 @@ use crate::{cpu::jsontest::DatabusLog, ppu};
 // pointers into VRAM
 
 // ReadCallback (???)
+
+pub struct MemoryWriteLog {
+    pub address: u16,
+    pub value: u8
+}
 
 pub struct DatabusLogger {
     pub log: Vec<DatabusLog>,
@@ -47,13 +52,15 @@ impl DatabusLogger {
 pub struct Memory {
     pub buffer: Vec<u8>,
     pub databus_logger: DatabusLogger,
+    pub cpu_channel_tx: Sender<MemoryWriteLog>
 }
 
 impl Memory {
-    pub fn new() -> Self {
+    pub fn new(cpu_channel_tx: Sender<MemoryWriteLog>) -> Self {
         Self {
             buffer: vec![0; 0xFFFF + 1],
             databus_logger: DatabusLogger::new(),
+            cpu_channel_tx
         }
     }
 
@@ -66,6 +73,7 @@ impl Memory {
 
     pub fn store_absolute(&mut self, address: u16, value: u8) {
         self.databus_logger.log_write(address, value);
+        self.cpu_channel_tx.send(MemoryWriteLog { address, value }).unwrap();
         self.buffer[address as usize] = value
     }
 

@@ -12,6 +12,8 @@ use std::time::{Duration, SystemTime};
 
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
+use nemsys::mappers::{Mapper, NROM};
+use nemsys::ppu::memory::VRAM;
 use simplelog::*;
 
 use nemsys::cpu::jsontest::{self, CpuTestState, InstructionTestCase, MemTest};
@@ -67,8 +69,10 @@ fn run_nestest() -> Result<()> {
 
     let mut cpu = Cpu::new();
     let mem = &mut cpu.memory;
+    let mut vram = VRAM::new(); // unused for our tests
 
-    mem.load_ines_rom("nestest/nestest.nes")?;
+    NROM::load_ines_rom("nestest/nestest.nes", &mut vram, mem)?;
+
     cpu.init_pc();
 
     let start_time = SystemTime::now();

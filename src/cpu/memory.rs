@@ -55,34 +55,6 @@ impl Memory {
         }
     }
 
-    pub fn load_ines_rom(&mut self, path: &str) -> Result<()> {
-        let mut file = File::open(path)?;
-        let mut buffer = Vec::new();
-
-        file.read_to_end(&mut buffer)?;
-
-        info!("Loaded {} bytes from ROM", buffer.len());
-
-        let prg_rom_size = buffer[5];
-        info!("Program ROM size: {} kb", prg_rom_size * 16);
-
-        let prg_rom_size: usize = prg_rom_size as usize * 16384;
-        info!("Copying {} bytes", prg_rom_size);
-
-        let mapper_flags = buffer[7] >> 4;
-        info!("Mapper type: {}", mapper_flags);
-
-        let prg_rom = &buffer[16..(16 + prg_rom_size)];
-
-        // implementing NROM mapper (mapper 0) for now
-        // copy prg-rom to 0x8000 and 0xC000
-        self.buffer[0x8000..(0x8000 + prg_rom_size)].clone_from_slice(prg_rom);
-        self.buffer[0xC000..(0xC000 + prg_rom_size)].clone_from_slice(prg_rom);
-
-        // panic!();
-        Ok(())
-    }
-
     pub fn fetch_absolute(&mut self, address: u16) -> u8 {
         let value = self.buffer[address as usize];
         self.databus_logger.log_read(address, value);

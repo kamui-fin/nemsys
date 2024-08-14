@@ -2,9 +2,12 @@ use std::cell::RefCell;
 use std::process;
 use std::rc::Rc;
 
+use nemsys::cpu::Cpu;
+use nemsys::mappers::{Mapper, NROM};
+use nemsys::ppu;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
+use sdl2::pixels::{Color, PixelFormat};
 use sdl2::rect::Rect;
 use sdl2::render::WindowCanvas;
 use sdl2::Sdl;
@@ -12,11 +15,18 @@ use sdl2::Sdl;
 static BLACK: Color = Color::RGB(0, 0, 0);
 static WHITE: Color = Color::RGB(255, 255, 255);
 
+static WIDTH: usize = 5 * 8 * 32;
+static HEIGHT: usize = 5 * 8 * 16;
+
 pub fn main_loop(
     ctx: Rc<RefCell<Sdl>>,
     rect: Rc<RefCell<Rect>>,
     canvas: Rc<RefCell<WindowCanvas>>,
 ) -> impl FnMut() {
+    let mut cpu = Cpu::new();
+    let mut vram = ppu::memory::VRAM::new();
+    NROM::load_ines_rom("donkey_kong.nes", &mut vram, &mut cpu.memory).unwrap();
+
     let mut events = ctx.borrow_mut().event_pump().unwrap();
 
     move || {
@@ -33,8 +43,48 @@ pub fn main_loop(
             }
         }
 
-        let _ = canvas.borrow_mut().set_draw_color(BLACK);
-        let _ = canvas.borrow_mut().clear();
+        let palette = [
+            BLACK,
+            Color::RGB(219, 1, 84),
+            Color::RGB(82, 221, 78),
+            Color::RGB(143, 225, 237),
+        ];
+        let pixsize = 5;
+        let mut last_tile_pos = 0x0000;
+
+        // let grid_i = 0;
+        // let grid_j = 0;
+
+        let tile_size = pixsize * 8;
+
+        for k in 0..512 {
+            let tile = &vram.buffer[last_tile_pos..(last_tile_pos + 16)];
+            for i in 0..8 {
+                for j in 0..8 {
+                    let first_bit = (tile[i].reverse_bits() >> j) & 1;
+                    let second_bit = (tile[i + 8].reverse_bits() >> j) & 1;
+                    let color_index = (second_bit << 1) | first_bit;
+                    let color = palette[color_index as usize];
+
+                    // draw pixel with color at given square coordinates
+                    canvas.borrow_mut().set_draw_color(color);
+                    let x_offset = (k * tile_size) % WIDTH;
+                    let y_offset = ((k * tile_size) / WIDTH) * tile_size;
+                    let x = i * pixsize + x_offset; // X-coordinate
+                    let y = j * pixsize + y_offset; // Y-coordinate
+                    canvas
+                        .borrow_mut()
+                        .fill_rect(Rect::new(
+                            x as i32,
+                            y as i32,
+                            pixsize as u32,
+                            pixsize as u32,
+                        ))
+                        .unwrap();
+                }
+            }
+            last_tile_pos = last_tile_pos + 16;
+        }
         let _ = canvas.borrow_mut().present();
     }
 }
@@ -55,7 +105,7 @@ fn main() {
     let video_ctx = ctx.video().unwrap();
 
     let window = match video_ctx
-        .window("Nemsys", 640, 480)
+        .window("Nemsys", WIDTH as u32, HEIGHT as u32)
         .position_centered()
         .opengl()
         .build()

@@ -4,6 +4,11 @@ use std::{fs::File, io::Read};
 
 use crate::cpu::jsontest::DatabusLog;
 
+// WriteCallback: range -> fn
+// pointers into VRAM
+
+// ReadCallback (???)
+
 pub struct DatabusLogger {
     pub log: Vec<DatabusLog>,
 }
@@ -19,6 +24,7 @@ impl DatabusLogger {
     }
 
     pub fn log_write(&mut self, address: u16, value: u8) {
+        // invoke WriteCallback.handle_callback(address, value)
         self.log
             .push(DatabusLog(address, value, "write".to_string()))
     }

@@ -29,38 +29,12 @@ pub fn main_loop(
                 } => {
                     process::exit(1);
                 }
-                Event::KeyDown {
-                    keycode: Some(Keycode::Left),
-                    ..
-                } => {
-                    rect.borrow_mut().x -= 10;
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::Right),
-                    ..
-                } => {
-                    rect.borrow_mut().x += 10;
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::Up),
-                    ..
-                } => {
-                    rect.borrow_mut().y -= 10;
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::Down),
-                    ..
-                } => {
-                    rect.borrow_mut().y += 10;
-                }
                 _ => {}
             }
         }
 
         let _ = canvas.borrow_mut().set_draw_color(BLACK);
         let _ = canvas.borrow_mut().clear();
-        let _ = canvas.borrow_mut().set_draw_color(WHITE);
-        let _ = canvas.borrow_mut().fill_rect(rect.borrow().clone());
         let _ = canvas.borrow_mut().present();
     }
 }
@@ -81,7 +55,7 @@ fn main() {
     let video_ctx = ctx.video().unwrap();
 
     let window = match video_ctx
-        .window("Hello, Rust / SDL2 / WASM!", 640, 480)
+        .window("Nemsys", 640, 480)
         .position_centered()
         .opengl()
         .build()

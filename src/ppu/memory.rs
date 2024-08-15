@@ -48,8 +48,4 @@ impl VRAM {
     pub fn set(&mut self, address: usize, value: u8){
         self.buffer[address] = value;
     }
-
-    pub fn write_callback(&mut self, address: usize, value: u8){
-        
-    }
 }

@@ -34,5 +34,4 @@ fn main() {
     });
 
     cpu.memory.store_absolute(0x2000, 0x4C);
-    sleep(Duration::from_millis(100));
 }

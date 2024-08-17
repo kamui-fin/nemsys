@@ -9,11 +9,7 @@
             "request": "launch",
             "name": "Debug executable 'xines'",
             "cargo": {
-                "args": [
-                    "build",
-                    "--bin=xines",
-                    "--package=xines"
-                ],
+                "args": ["build", "--bin=xines", "--package=xines"],
                 "filter": {
                     "name": "xines",
                     "kind": "bin"
@@ -27,12 +23,7 @@
             "request": "launch",
             "name": "Debug unit tests in executable 'xines'",
             "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=xines",
-                    "--package=xines"
-                ],
+                "args": ["test", "--no-run", "--bin=xines", "--package=xines"],
                 "filter": {
                     "name": "xines",
                     "kind": "bin"

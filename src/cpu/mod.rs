@@ -1,23 +1,25 @@
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Receiver, Sender};
 
 use log::info;
-use memory::MemoryWriteLog;
+use memory::MemoryAccessLog;
+
+use crate::ppu::PPU;
 
 pub mod jsontest;
 pub mod memory;
 pub mod registers;
 
-pub struct Cpu {
-    pub memory: memory::Memory,
+pub struct Cpu<'s> {
+    pub memory: memory::Memory<'s>,
     pub registers: registers::Registers,
 
     pub num_cycles: usize, // elapsed # of cycles
 }
 
-impl Cpu {
-    pub fn new(cpu_channel_tx: Sender<MemoryWriteLog>) -> Self {
+impl <'s>Cpu<'s> {
+    pub fn new(ppu: &'s mut PPU) -> Self {
         Self {
-            memory: memory::Memory::new(cpu_channel_tx),
+            memory: memory::Memory::new(ppu),
             registers: registers::Registers::new(),
             num_cycles: 0,
         }

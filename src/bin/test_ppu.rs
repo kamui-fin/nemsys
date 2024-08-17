@@ -3,7 +3,7 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use log::LevelFilter;
-use nemsys::cpu::memory::MemoryWriteLog;
+use nemsys::cpu::memory::MemoryAccessLog;
 use nemsys::cpu::Cpu;
 use nemsys::ppu::PPU;
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
@@ -19,19 +19,8 @@ fn main() {
         ),
     ])
     .unwrap();
-    let (cpu_channel_tx, cpu_channel_rx) = channel::<MemoryWriteLog>();
-
-    let mut cpu = Cpu::new(cpu_channel_tx);
     let mut ppu = PPU::new();
-
-    thread::spawn(move || {
-        for log in cpu_channel_rx {
-            match log.address {
-                0x2000 => ppu.ppu_ctrl(log.value),
-                _ => {}
-            }
-        }
-    });
+    let mut cpu = Cpu::new(&mut ppu);
 
     cpu.memory.store_absolute(0x2000, 0x4C);
 }

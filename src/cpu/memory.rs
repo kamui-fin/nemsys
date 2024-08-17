@@ -1,16 +1,16 @@
 use anyhow::Result;
 use log::info;
-use std::{fs::File, io::Read, sync::mpsc::Sender};
+use std::{fs::File, io::Read, sync::mpsc::Sender, sync::mpsc::Receiver};
 use ppu::memory::VRAM;
 
-use crate::{cpu::jsontest::DatabusLog, ppu};
+use crate::{cpu::jsontest::DatabusLog, ppu::{self, PPU}};
 
 // WriteCallback: range -> fn
 // pointers into VRAM
 
 // ReadCallback (???)
 
-pub struct MemoryWriteLog {
+pub struct MemoryAccessLog {
     pub address: u16,
     pub value: u8
 }
@@ -49,32 +49,45 @@ impl DatabusLogger {
 /// - $FFFA to $FFFF reserved
 /// - Little endian
 // Includes stack abstraction methods
-pub struct Memory {
+pub struct Memory<'s> {
     pub buffer: Vec<u8>,
     pub databus_logger: DatabusLogger,
-    pub cpu_channel_tx: Sender<MemoryWriteLog>
+    pub ppu: &'s mut PPU
 }
 
-impl Memory {
-    pub fn new(cpu_channel_tx: Sender<MemoryWriteLog>) -> Self {
+impl <'s>Memory<'s> {
+    pub fn new(ppu: &'s mut PPU) -> Self {
         Self {
             buffer: vec![0; 0xFFFF + 1],
             databus_logger: DatabusLogger::new(),
-            cpu_channel_tx
+            ppu
         }
     }
 
     pub fn fetch_absolute(&mut self, address: u16) -> u8 {
         let value = self.buffer[address as usize];
         self.databus_logger.log_read(address, value);
-
-        value
+        match address {
+            0x2002 => self.ppu.ppu_status(),
+            0x2004 => self.ppu.oam_data_read(),
+            0x2007 => self.ppu.ppu_data_read(),
+            _ => value
+        }
     }
 
     pub fn store_absolute(&mut self, address: u16, value: u8) {
         self.databus_logger.log_write(address, value);
-        self.cpu_channel_tx.send(MemoryWriteLog { address, value }).unwrap();
-        self.buffer[address as usize] = value
+        match address {
+            0x2000 => self.ppu.ppu_ctrl(value),
+            0x2001 => self.ppu.ppu_mask(value),
+            0x2003 => self.ppu.oam_addr(value),
+            0x2004 => self.ppu.oam_data_write(value),
+            0x2005 => self.ppu.ppu_scroll(value),
+            0x2006 => self.ppu.ppu_addr(value),
+            0x2007 => self.ppu.ppu_data_write(value),
+            0x4014 => self.ppu.oam_dma(&self.buffer[((value << 8) as usize)..=(((value << 8) | 0xFF) as usize)]),
+            _ => self.buffer[address as usize] = value
+        }
     }
 
     // also called for absolute_y

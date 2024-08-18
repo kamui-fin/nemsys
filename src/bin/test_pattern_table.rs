@@ -23,8 +23,8 @@ pub fn main_loop(
     rect: Rc<RefCell<Rect>>,
     canvas: Rc<RefCell<WindowCanvas>>,
 ) -> impl FnMut() {
-    let mut cpu = Cpu::new();
     let mut vram = ppu::memory::VRAM::new();
+    let mut cpu = Cpu::new(&mut vram);
     NROM::load_ines_rom("donkey_kong.nes", &mut vram, &mut cpu.memory).unwrap();
 
     let mut events = ctx.borrow_mut().event_pump().unwrap();

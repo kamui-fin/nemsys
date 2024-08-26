@@ -14,6 +14,7 @@ use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use nemsys::mappers::{Mapper, NROM};
 use nemsys::ppu::memory::VRAM;
+use nemsys::ppu::PPU;
 use simplelog::*;
 
 use nemsys::cpu::jsontest::{self, CpuTestState, InstructionTestCase, MemTest};
@@ -67,11 +68,12 @@ fn run_nestest() -> Result<()> {
     ])
     .unwrap();
 
-    let mut cpu = Cpu::new();
+    let mut ppu = PPU::new();
+    let mut cpu = Cpu::new(&mut ppu);
     let mem = &mut cpu.memory;
     let mut vram = VRAM::new(); // unused for our tests
 
-    NROM::load_ines_rom("nestest/nestest.nes", &mut vram, mem)?;
+    NROM::from_ines_rom("nestest/nestest.nes", &mut vram, mem)?;
 
     cpu.init_pc();
 
@@ -156,7 +158,8 @@ fn assert_cpu_test_state(state: CpuTestState, cpu: &Cpu) {
 }
 
 fn test_instruction(case: InstructionTestCase) {
-    let mut cpu = Cpu::new();
+    let mut ppu = PPU::new();
+    let mut cpu = Cpu::new(&mut ppu);
 
     let initial_state = case.initial;
     init_cpu_test_state(initial_state.clone(), &mut cpu);

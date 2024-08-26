@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use nemsys::cpu::Cpu;
 use nemsys::mappers::{Mapper, NROM};
-use nemsys::ppu;
+use nemsys::ppu::{self, PPU};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::{Color, PixelFormat};
@@ -23,9 +23,10 @@ pub fn main_loop(
     rect: Rc<RefCell<Rect>>,
     canvas: Rc<RefCell<WindowCanvas>>,
 ) -> impl FnMut() {
+    let mut ppu = PPU::new();
     let mut vram = ppu::memory::VRAM::new();
-    let mut cpu = Cpu::new(&mut vram);
-    NROM::load_ines_rom("donkey_kong.nes", &mut vram, &mut cpu.memory).unwrap();
+    let mut cpu = Cpu::new(&mut ppu);
+    NROM::from_ines_rom("donkey_kong.nes", &mut vram, &mut cpu.memory).unwrap();
 
     let mut events = ctx.borrow_mut().event_pump().unwrap();
 

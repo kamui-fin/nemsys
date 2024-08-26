@@ -3,22 +3,23 @@ use std::{fs::File, io::Read};
 use anyhow::Result;
 use log::info;
 
-use crate::{cpu::memory::Memory, ppu::memory::VRAM};
-
-// Not really used for now
-pub enum NametableArrangement {
-    HorizontalMirror,
-    VerticalMirror,
-}
+use crate::{
+    cpu::memory::Memory,
+    ppu::{memory::VRAM, NametableArrangement},
+};
 
 pub trait Mapper {
-    fn load_ines_rom(path: &str, vram: &mut VRAM, wram: &mut Memory) -> Result<()>;
+    fn from_ines_rom(path: &str, vram: &mut VRAM, wram: &mut Memory) -> Result<Self>
+    where
+        Self: Sized;
 }
 
-pub struct NROM;
+pub struct NROM {
+    nt_arrangement: NametableArrangement,
+}
 
 impl Mapper for NROM {
-    fn load_ines_rom(path: &str, vram: &mut VRAM, wram: &mut Memory) -> Result<()> {
+    fn from_ines_rom(path: &str, vram: &mut VRAM, wram: &mut Memory) -> Result<Self> {
         let mut file = File::open(path)?;
         let mut buffer = Vec::new();
 
@@ -54,6 +55,6 @@ impl Mapper for NROM {
         let chr_rom = &buffer[(16 + prg_rom_size)..((16 + prg_rom_size) + chr_rom_size)];
         vram.buffer[0x0000..(0x0000 + chr_rom_size)].clone_from_slice(chr_rom);
 
-        Ok(())
+        Ok(Self { nt_arrangement })
     }
 }

@@ -1,6 +1,6 @@
 #[cfg(target_family = "wasm")]
 pub mod emscripten;
-pub(crate) mod memory;
+pub mod memory;
 
 use memory::VRAM;
 
@@ -121,6 +121,11 @@ pub struct Nametable {
     attr: Vec<Vec<u8>>,
 }
 
+pub enum NametableArrangement {
+    HorizontalMirror,
+    VerticalMirror,
+}
+
 pub enum Quadrant {
     TopLeft,
     TopRight,
@@ -129,13 +134,12 @@ pub enum Quadrant {
 }
 
 impl Nametable {
-    pub fn new(quad: u8, mem: &VRAM) -> Self {
+    pub fn new(quad: Quadrant, mem: &VRAM) -> Self {
         let starting_addr = match quad {
-            1 => 0x2000,
-            2 => 0x2400,
-            3 => 0x2800,
-            4 => 0x2C00,
-            _ => 0,
+            Quadrant::TopLeft => 0x2000,
+            Quadrant::TopRight => 0x2400,
+            Quadrant::BottomLeft => 0x2800,
+            Quadrant::BottomRight => 0x2C00,
         };
         // Load nametable from $2000
         let table = &mem.buffer[starting_addr..(starting_addr + 960)];
@@ -214,7 +218,7 @@ pub struct Palette {
     starting_addr: usize,
 }
 
-enum PaletteIndex {
+pub enum PaletteIndex {
     Bg(u8),
     Sprite(u8),
 }

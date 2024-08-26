@@ -1,9 +1,12 @@
 use anyhow::Result;
 use log::info;
-use std::{fs::File, io::Read, sync::mpsc::Sender, sync::mpsc::Receiver};
 use ppu::memory::VRAM;
+use std::{fs::File, io::Read, sync::mpsc::Receiver, sync::mpsc::Sender};
 
-use crate::{cpu::jsontest::DatabusLog, ppu::{self, PPU}};
+use crate::{
+    cpu::jsontest::DatabusLog,
+    ppu::{self, PPU},
+};
 
 // WriteCallback: range -> fn
 // pointers into VRAM
@@ -12,7 +15,7 @@ use crate::{cpu::jsontest::DatabusLog, ppu::{self, PPU}};
 
 pub struct MemoryAccessLog {
     pub address: u16,
-    pub value: u8
+    pub value: u8,
 }
 
 pub struct DatabusLogger {
@@ -21,9 +24,7 @@ pub struct DatabusLogger {
 
 impl DatabusLogger {
     pub fn new() -> Self {
-        Self { 
-            log: vec![],
-        }
+        Self { log: vec![] }
     }
 
     pub fn log_read(&mut self, address: u16, value: u8) {
@@ -52,15 +53,15 @@ impl DatabusLogger {
 pub struct Memory<'s> {
     pub buffer: Vec<u8>,
     pub databus_logger: DatabusLogger,
-    pub ppu: &'s mut PPU
+    pub ppu: &'s mut PPU,
 }
 
-impl <'s>Memory<'s> {
+impl<'s> Memory<'s> {
     pub fn new(ppu: &'s mut PPU) -> Self {
         Self {
             buffer: vec![0; 0xFFFF + 1],
             databus_logger: DatabusLogger::new(),
-            ppu
+            ppu,
         }
     }
 
@@ -71,7 +72,7 @@ impl <'s>Memory<'s> {
             0x2002 => self.ppu.ppu_status(),
             0x2004 => self.ppu.oam_data_read(),
             0x2007 => self.ppu.ppu_data_read(),
-            _ => value
+            _ => value,
         }
     }
 
@@ -85,8 +86,9 @@ impl <'s>Memory<'s> {
             0x2005 => self.ppu.ppu_scroll(value),
             0x2006 => self.ppu.ppu_addr(value),
             0x2007 => self.ppu.ppu_data_write(value),
-            0x4014 => self.ppu.oam_dma(&self.buffer[((value << 8) as usize)..=(((value << 8) | 0xFF) as usize)]),
-            _ => self.buffer[address as usize] = value
+            // FIXME:
+            // 0x4014 => self.ppu.oam_dma(&self.buffer[((value << 8) as usize)..=(((value << 8) | 0xFF) as usize)]),
+            _ => self.buffer[address as usize] = value,
         }
     }
 

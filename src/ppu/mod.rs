@@ -2,6 +2,8 @@
 pub mod emscripten;
 pub mod memory;
 
+use std::collections::VecDeque;
+
 use memory::VRAM;
 
 type RGB = (u8, u8, u8);
@@ -288,10 +290,54 @@ impl OAM {
     }
 }
 
+pub struct SEC_OAM {
+    sprite_info: [u8; 32],
+}
+
+impl SEC_OAM {
+    pub fn new() -> Self {
+        Self {
+            sprite_info: [0xFF; 32],
+        }
+    }
+}
+
+pub struct Sprite {
+    horizontal_flip: bool,
+    vertical_flip: bool,
+    priority: bool,
+    lo_byte: u8,
+    hi_byte: u8,
+}
+
+impl Sprite {
+    pub fn new(
+        horizontal_flip: bool,
+        vertical_flip: bool,
+        priority: bool,
+        lo_byte: u8,
+        hi_byte: u8,
+    ) -> Self {
+        Self {
+            horizontal_flip,
+            vertical_flip,
+            priority,
+            lo_byte,
+            hi_byte,
+        }
+    }
+}
+
 pub struct PPU {
+    num_cycles: usize,
+
     curr_row: usize,
     curr_col: usize,
-    curr_scanline: usize,
+    curr_scanline: u8,
+    secondary_oam: SEC_OAM,
+
+    nametable_queue: VecDeque<TileFetch>,
+    sprite_queue: VecDeque<Sprite>,
 
     vram: VRAM,
     oam: OAM,
@@ -312,6 +358,7 @@ pub struct PPU {
     num_sprites: usize,
     is_vblank: bool,
     sprite_hit: bool,
+    sprite_overflow: bool,
 
     base_nametable_address: usize,
     read_buffer: u8,
@@ -350,6 +397,16 @@ impl PPU {
             oam: OAM::new(),
             oam_address: 0,
 
+            num_cycles: 0,
+            curr_row: 0,
+            curr_col: 0,
+            curr_scanline: 0,
+
+            secondary_oam: SEC_OAM::new(),
+
+            nametable_queue: VecDeque::new(),
+            sprite_queue: VecDeque::new(),
+
             v: 0,
             t: 0,
             fine_x: 0,
@@ -365,6 +422,7 @@ impl PPU {
             num_sprites: 0,
             is_vblank: false,
             sprite_hit: false,
+            sprite_overflow: false,
 
             base_nametable_address: 0x2000,
             read_buffer: 0,
@@ -568,8 +626,8 @@ impl PPU {
             4 => (attr_byte & 0b1100_0000) >> 6,
             _ => 0,
         };
-        let pt_low_byte = pt_bg.tile_map[nt_byte as usize][self.curr_scanline % 8];
-        let pt_hi_byte = pt_bg.tile_map[nt_byte as usize][self.curr_scanline % 8];
+        let pt_low_byte = pt_bg.tile_map[nt_byte as usize][(self.curr_scanline % 8) as usize];
+        let pt_hi_byte = pt_bg.tile_map[nt_byte as usize][(self.curr_scanline % 8) as usize];
 
         TileFetch {
             nt_byte,
@@ -579,7 +637,160 @@ impl PPU {
         }
     }
 
-    pub fn tick(&mut self) {}
+    /// Clear the Secondary OAM from the previous scanline
+    /// Cycles 1-64 require a cleared Secondary OAM
+    pub fn clear_secondary_oam(&mut self) {
+        self.secondary_oam = SEC_OAM::new();
+        self.num_sprites = 0;
+    }
+
+    /// Evaluate Sprites for next line
+    /// Cycles 65 - 256 (occcurs concurrently with background fetching and current scanline rendering)
+    pub fn evaluate_sprite(&mut self) {
+        for i in 0..64 {
+            let curr_y = self.oam.sprite_info[i * 4];
+            if curr_y <= self.curr_scanline
+                && (self.sprite_size && self.curr_scanline < curr_y.wrapping_add(16)
+                    || !self.sprite_size && self.curr_scanline < curr_y.wrapping_add(8))
+            {
+                if self.num_sprites < 8 {
+                    for k in 0..4 {
+                        self.secondary_oam.sprite_info[self.num_sprites * 4 + k] =
+                            self.oam.sprite_info[i * 4 + k];
+                    }
+                    self.num_sprites += 1;
+                } else {
+                    self.sprite_overflow = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Fetch Sprite Data
+    /// Cycles 257 - 320
+    pub fn fetch_sprite_data(&mut self) {
+        for i in 0..self.num_sprites {
+            let y = self.secondary_oam.sprite_info[i * 4];
+            let tile_idx = self.secondary_oam.sprite_info[i * 4 + 1];
+            let attribute_byte = self.secondary_oam.sprite_info[i * 4 + 2];
+            let x = self.secondary_oam.sprite_info[i * 4 + 3];
+
+            let sprite_height = if self.sprite_size { 16 } else { 8 };
+
+            let mut curr_row = (self.curr_scanline - y) % sprite_height;
+            let mut actual_address = self.sprite_pattern_address;
+
+            if self.sprite_size {
+                let bottom = tile_idx & 1;
+
+                if bottom == 1 {
+                    actual_address = 0x1000;
+                } else {
+                    actual_address = 0x0000;
+                }
+
+                let actual_idx = (tile_idx >> 1) << 1; // basically clears last bit
+
+                actual_address += (actual_idx as u16) * 16;
+
+                if curr_row >= 8 {
+                    actual_address += 16;
+                    curr_row = curr_row % 8;
+                }
+
+                actual_address += curr_row as u16;
+            } else {
+                actual_address += (tile_idx as u16 * 16) + curr_row as u16
+            }
+
+            let pattern_address = actual_address;
+            let pattern_lo = self.vram.get(pattern_address.into());
+            let pattern_hi = self.vram.get((pattern_address + 8).into());
+
+            let horizontal_flip_bit = if attribute_byte & 0x20 != 0 {
+                true
+            } else {
+                false
+            };
+            let vertical_flip_bit = if attribute_byte & 0x40 != 0 {
+                true
+            } else {
+                false
+            };
+            let priority_bit = if attribute_byte & 0x80 != 0 {
+                true
+            } else {
+                false
+            };
+
+            self.sprite_queue.push_back(Sprite::new(
+                horizontal_flip_bit,
+                vertical_flip_bit,
+                priority_bit,
+                pattern_lo,
+                pattern_hi,
+            ));
+        }
+    }
+
+    // TODO
+    pub fn render_tile(&mut self, tile_data: TileFetch) {}
+
+    pub fn tick_scanline(&mut self, should_render: bool) {
+        // Cycles 0
+        // ---- IDLE ----
+
+        // Cycles 1-256
+        // 8 sets of 8-cycle BG tile fetches, sprite evaluation, render BG tile
+        for _ in 0..30 {
+            // render THEN fetch
+            if should_render {
+                let bg_tile_data = self.nametable_queue.pop_front().unwrap();
+                self.render_tile(bg_tile_data); // also needs to take the current sprite_queue into account
+            }
+
+            let next_tile_fetch = self.fetch_bg_tile();
+            self.nametable_queue.push_back(next_tile_fetch);
+        }
+
+        self.evaluate_sprite();
+
+        // Cycles 257-320
+        self.fetch_sprite_data();
+
+        // Cycles 321-336
+        // replenish queue
+        self.nametable_queue = VecDeque::from(vec![self.fetch_bg_tile(), self.fetch_bg_tile()]);
+
+        // Cycles 337-340
+        // fetch tile 3 of next scanline two times
+        // don't think we ACTUALLY need to perform the fetch, just waste the 3 cycles
+
+        self.num_cycles += 341;
+    }
+
+    pub fn noop_scanline(&mut self) {
+        self.num_cycles += 341;
+    }
+
+    pub fn tick(&mut self) {
+        // Scanline -1 (PRE)
+        self.tick_scanline(false);
+        // Scanline 0 - 239 (VISIBLE)
+        for _ in 0..=239 {
+            self.tick_scanline(true);
+        }
+        // Scanline 240 (IDLE)
+        self.noop_scanline();
+        // Scanline 241-260 (VBLANK)
+        self.is_vblank = true;
+        // frame's pixels are ready to be displayed now
+        // Invoke NMI ?
+        for _ in 241..=260 {
+            self.noop_scanline();
+        }
+    }
 }
 
 pub struct TileFetch {

@@ -16,7 +16,7 @@ pub struct Cpu<'s> {
     pub num_cycles: usize, // elapsed # of cycles
 }
 
-impl <'s>Cpu<'s> {
+impl<'s> Cpu<'s> {
     pub fn new(ppu: &'s mut PPU) -> Self {
         Self {
             memory: memory::Memory::new(ppu),

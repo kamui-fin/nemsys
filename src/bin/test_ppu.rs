@@ -72,7 +72,6 @@ impl Display {
             .unwrap();
 
         let texture = unsafe { std::mem::transmute::<_, Texture<'static>>(texture) };
-
         let texture = RefCell::new(texture);
 
         let ctx = Rc::new(RefCell::new(ctx));

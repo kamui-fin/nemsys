@@ -73,7 +73,7 @@ const MASTER_PALETTE: [RGB; 0x40] = [
     (0, 0, 0),
 ];
 pub struct PatternTable {
-    tile_map: [[[u8; 8]; 8]; 256],
+    pub tile_map: [[u8; 16]; 256],
 }
 
 pub struct NesColor {
@@ -87,12 +87,8 @@ pub enum PatternTableType {
 }
 
 impl PatternTable {
-    pub fn new(tile_map: [[[u8; 8]; 8]; 256]) -> Self {
-        Self { tile_map }
-    }
-
     pub fn from_memory(ptype: PatternTableType, vram: &VRAM) -> Self {
-        let mut tile_map = [[[0; 8]; 8]; 256];
+        let mut tile_map = [[0; 16]; 256];
         let mut last_tile_pos = 0x0000;
         let mem_range = match ptype {
             PatternTableType::Background => 256..512,
@@ -100,14 +96,15 @@ impl PatternTable {
         };
         for k in mem_range {
             let tile = &vram.buffer[last_tile_pos..(last_tile_pos + 16)];
-            for i in 0..8 {
-                for j in 0..8 {
-                    let first_bit = (tile[i].reverse_bits() >> j) & 1;
-                    let second_bit = (tile[i + 8].reverse_bits() >> j) & 1;
-                    let color_index = (second_bit << 1) | first_bit;
-                    tile_map[k][i][j] = color_index;
-                }
-            }
+            tile_map[k].copy_from_slice(tile);
+            // for i in 0..8 {
+            //     for j in 0..8 {
+            //         let first_bit = (tile[i].reverse_bits() >> j) & 1;
+            //         let second_bit = (tile[i + 8].reverse_bits() >> j) & 1;
+            //         let color_index = (second_bit << 1) | first_bit;
+            //         tile_map[k][i][j] = color_index;
+            //     }
+            // }
             last_tile_pos = last_tile_pos + 16;
         }
         Self { tile_map }
@@ -292,13 +289,17 @@ impl OAM {
 }
 
 pub struct PPU {
+    curr_row: usize,
+    curr_col: usize,
+    curr_scanline: usize,
+
     vram: VRAM,
     oam: OAM,
 
     // internal registers
     v: u16, // During rendering, used for the scroll position. Outside of rendering, used as the current VRAM address.
     t: u16, // During rendering, specifies the starting coarse-x scroll for the next scanline and the starting y scroll for the screen. Outside of rendering, holds the scroll or VRAM address before transferring it to v.
-    x: u16, // The fine-x position of the current scroll, used during rendering alongside v.
+    fine_x: u16, // The fine-x position of the current scroll, used during rendering alongside v.
     w: bool, // Toggles on each write to either PPUSCROLL or PPUADDR, indicating whether this is the first or second write. Clears on reads of PPUSTATUS. Sometimes called the 'write latch' or 'write toggle'.
 
     increment: u8, // how much to increment the vram by per read/write
@@ -312,7 +313,7 @@ pub struct PPU {
     is_vblank: bool,
     sprite_hit: bool,
 
-    base_nametable_address: u16,
+    base_nametable_address: usize,
     read_buffer: u8,
     oam_address: u8,
     x_scroll: u8,
@@ -351,7 +352,7 @@ impl PPU {
 
             v: 0,
             t: 0,
-            x: 0,
+            fine_x: 0,
             w: false, // false: 1st write, true: 2nd write
 
             increment: 1,
@@ -533,4 +534,57 @@ impl PPU {
     pub fn oam_dma(&mut self, mem_slice: &[u8]) {
         self.oam.sprite_info = mem_slice.try_into().unwrap();
     }
+
+    pub fn fetch_bg_tile(&mut self) -> TileFetch {
+        let pt_bg = PatternTable::from_memory(PatternTableType::Background, &mut self.vram);
+
+        // 8 cycles of fetch + store to shift registers (BACKGROUND)
+        let nt_byte_addr =
+            self.base_nametable_address + self.curr_row * 32 + self.curr_col as usize;
+        let nt_byte = self.vram.get(nt_byte_addr);
+        let attr_byte_offset = (self.curr_row / 4) * 4 + (self.curr_col / 4) + 1;
+        let attr_byte = self
+            .vram
+            .get(self.base_nametable_address + 960 + attr_byte_offset);
+        let block_i = self.curr_row % 4;
+        let block_j = self.curr_col % 4;
+        let quad = if block_i < 2 {
+            if block_j < 2 {
+                1
+            } else {
+                2
+            }
+        } else {
+            if block_j < 2 {
+                3
+            } else {
+                4
+            }
+        };
+        let attr_two_bit = match quad {
+            1 => attr_byte & 0b0000_0011,
+            2 => (attr_byte & 0b0000_1100) >> 2,
+            3 => (attr_byte & 0b0011_0000) >> 4,
+            4 => (attr_byte & 0b1100_0000) >> 6,
+            _ => 0,
+        };
+        let pt_low_byte = pt_bg.tile_map[nt_byte as usize][self.curr_scanline % 8];
+        let pt_hi_byte = pt_bg.tile_map[nt_byte as usize][self.curr_scanline % 8];
+
+        TileFetch {
+            nt_byte,
+            attr_two_bit,
+            pt_low_byte,
+            pt_hi_byte,
+        }
+    }
+
+    pub fn tick(&mut self) {}
+}
+
+pub struct TileFetch {
+    nt_byte: u8,
+    attr_two_bit: u8,
+    pt_low_byte: u8,
+    pt_hi_byte: u8,
 }

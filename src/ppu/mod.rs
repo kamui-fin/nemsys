@@ -258,8 +258,8 @@ impl Palette {
     }
 
     pub fn get_colors(&self, vram: &VRAM) -> Vec<RGB> {
-        let mut colors = vec![];
-        for i in 0..4 {
+        let mut colors = vec![MASTER_PALETTE[vram.get((0x3F00)) as usize]];
+        for i in 0..3 {
             colors.push(MASTER_PALETTE[vram.get((self.starting_addr + i)) as usize]);
         }
 
@@ -455,7 +455,7 @@ impl PPU {
 
     /// $2000
     pub fn ppu_ctrl(&mut self, value: u8) {
-        error!("PPUCTRL: {:b}", value);
+        // error!("PPUCTRL: {:b}", value);
         self.base_nametable_address = match value & 0b11 {
             0 => 0x2000,
             1 => 0x2400,
@@ -469,7 +469,7 @@ impl PPU {
         } else {
             0x0000
         };
-        self.bg_pattern_address = if get_bit(value.into(), 4) == 1 {
+        self.bg_pattern_address = if get_bit(value.into(), 4) == 0 {
             0x0000
         } else {
             0x1000
@@ -481,7 +481,7 @@ impl PPU {
 
     /// $2001
     pub fn ppu_mask(&mut self, value: u8) {
-        error!("PPUMASK {:b}", value);
+        // error!("PPUMASK {:b}", value);
 
         self.is_greyscale = get_bit(value.into(), 0) == 1;
         self.clip_background = get_bit(value.into(), 1) == 1;
@@ -495,7 +495,7 @@ impl PPU {
 
     /// $2002
     pub fn ppu_status(&mut self) -> u8 {
-        error!("PPUSTATUS");
+        // error!("PPUSTATUS");
         // 7  bit  0
         // ---- ----
         // VSO. ....
@@ -625,9 +625,6 @@ impl PPU {
         let nt_byte_addr =
             self.base_nametable_address + self.curr_tile_row * 32 + self.curr_tile_col as usize;
         let nt_byte = self.vram.get(nt_byte_addr);
-        // if nt_byte != 0 {
-        // error!("{nt_byte}");
-        // }
         let attr_byte_offset = (self.curr_tile_row / 4) * 4 + (self.curr_tile_col / 4) + 1;
         let attr_byte = self
             .vram
@@ -666,7 +663,7 @@ impl PPU {
             pt_hi_byte,
         }
     }
-    pub fn render_tile(&mut self, tile_data: TileFetch) {
+    pub fn render_tile(&mut self, tile_data: TileFetch, curr_tile_row: usize, curr_tile_col: usize) {
         // for now we'll only render background tile_data
         let palette = Palette::new(PaletteIndex::Bg(tile_data.attr_two_bit));
         if tile_data.nt_byte != 0 {
@@ -675,7 +672,7 @@ impl PPU {
             // panic!();
         }
         let pix_row = self.curr_scanline as usize;
-        let pix_col = self.curr_tile_col * 8;
+        let pix_col = curr_tile_col * 8;
         for i in 0..8 {
             let first_bit = (tile_data.pt_low_byte.reverse_bits() >> i) & 1;
             let second_bit = (tile_data.pt_low_byte.reverse_bits() >> i) & 1;
@@ -688,12 +685,7 @@ impl PPU {
             //         pix_col + i
             //     );
             // }
-            let (r, g, b) = if color < 0 {
-                // transparent pixel
-                (255, 255, 255)
-            } else {
-                palette.get_color(&self.vram, color.into())
-            };
+            let (r, g, b) = palette.get_color(&self.vram, color.into());
             self.fb.borrow_mut()[(pix_row * 256 + pix_col + i) as usize] = Color::RGB(r, g, b)
                 .to_u32(&sdl2::pixels::PixelFormatEnum::RGBA8888.try_into().unwrap());
         }
@@ -705,41 +697,45 @@ impl PPU {
 
         // Cycles 1-256
         // 8 sets of 8-cycle BG tile fetches, sprite evaluation, render BG tile
-        self.curr_tile_col = 0;
-        for _ in 0..30 {
-            // render THEN fetch
-            if should_render {
-                let bg_tile_data = self.nametable_queue.pop_front();
-                if let Some(bg_tile_data) = bg_tile_data {
-                    self.render_tile(bg_tile_data); // also needs to take the current sprite_queue into account
-                }
-            }
-            self.curr_tile_col += 1;
-
-            let next_tile_fetch = self.fetch_bg_tile();
-            self.nametable_queue.push_back(next_tile_fetch);
-        }
-
-        if should_render {
-            for _ in 0..2 {
+        if self.curr_scanline != -1 {
+            self.curr_tile_col = 2;
+            for _ in 0..30 {
+                // render THEN fetch
                 if should_render {
                     let bg_tile_data = self.nametable_queue.pop_front();
                     if let Some(bg_tile_data) = bg_tile_data {
-                        self.render_tile(bg_tile_data);
+                        self.render_tile(bg_tile_data, self.curr_tile_row, self.curr_tile_col - 2); // also needs to take the current sprite_queue into account
                     }
                 }
+
+                let next_tile_fetch = self.fetch_bg_tile();
+                self.nametable_queue.push_back(next_tile_fetch);
+
                 self.curr_tile_col += 1;
             }
+
+            if should_render {
+                for i in 0..2 {
+                    let bg_tile_data = self.nametable_queue.pop_front();
+                    if let Some(bg_tile_data) = bg_tile_data {
+                        self.render_tile(bg_tile_data, self.curr_tile_row, 30 + i);
+                    }
+                }
+            }
+
+            self.evaluate_sprite();
+
+            // Cycles 257-320
+            self.fetch_sprite_data();
         }
-
-        self.evaluate_sprite();
-
-        // Cycles 257-320
-        self.fetch_sprite_data();
-
         // Cycles 321-336
         // replenish queue
-        self.nametable_queue = VecDeque::from(vec![self.fetch_bg_tile(), self.fetch_bg_tile()]);
+        self.curr_tile_row = (self.curr_scanline + 1) as usize / 8;
+        self.curr_tile_col = 0;
+        let first_tile = self.fetch_bg_tile();
+        self.curr_tile_col = 1;
+        let second_tile = self.fetch_bg_tile();
+        self.nametable_queue = VecDeque::from(vec![first_tile, second_tile]);
 
         // Cycles 337-340
         // fetch tile 3 of next scanline two times

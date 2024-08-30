@@ -122,7 +122,7 @@ impl Display {
         .unwrap();
 
         cpu.init_pc();
-        // cpu.generate_nmi();
+        
 
         loop {
             let mut events = self.ctx.borrow_mut().event_pump().unwrap();
@@ -150,7 +150,7 @@ impl Display {
             if ppu.borrow().is_vblank {
                 self.flush();
 
-                if ppu.borrow().curr_scanline == 241 || ppu.borrow().generate_nmi {
+                if ppu.borrow().generate_nmi {
                     cpu.generate_nmi();
                 }
             }
@@ -201,7 +201,7 @@ impl Display {
 
 fn main() {
     CombinedLogger::init(vec![TermLogger::new(
-        LevelFilter::Info,
+        LevelFilter::Off,
         Config::default(),
         TerminalMode::Mixed,
         ColorChoice::Auto,

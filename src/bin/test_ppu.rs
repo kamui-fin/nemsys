@@ -1,7 +1,8 @@
 use std::cell::RefCell;
-use std::process;
 use std::rc::Rc;
+use std::{default, process};
 
+use log::{error, LevelFilter};
 use nemsys::cpu::Cpu;
 use nemsys::mappers::{Mapper, NROM};
 use nemsys::ppu::{self, PPU};
@@ -11,6 +12,7 @@ use sdl2::pixels::{Color, PixelFormat};
 use sdl2::rect::Rect;
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::Sdl;
+use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -39,7 +41,7 @@ struct Display {
     pub sdl_canvas: sdl2::render::Canvas<sdl2::video::Window>,
     pub tex_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
     pub texture: RefCell<Texture<'static>>,
-    pub data: Vec<u32>,
+    pub data: Rc<RefCell<Vec<u32>>>,
 }
 
 impl Display {
@@ -66,8 +68,8 @@ impl Display {
             .create_texture(
                 sdl2::pixels::PixelFormatEnum::RGBA8888,
                 sdl2::render::TextureAccess::Streaming,
-                WIDTH as u32,
-                HEIGHT as u32,
+                width as u32,
+                height as u32,
             )
             .unwrap();
 
@@ -76,6 +78,9 @@ impl Display {
 
         let ctx = Rc::new(RefCell::new(ctx));
 
+        let default_color = Color::RGB(255, 255, 255)
+            .to_u32(&sdl2::pixels::PixelFormatEnum::RGBA8888.try_into().unwrap());
+
         Self {
             width,
             height,
@@ -83,7 +88,7 @@ impl Display {
             sdl_canvas,
             texture,
             tex_creator,
-            data: vec![0; (width * height) as usize],
+            data: Rc::new(RefCell::new(vec![default_color; (width * height) as usize])),
         }
     }
 
@@ -92,24 +97,35 @@ impl Display {
         texture
             .update(None, self.data_raw(), (self.width * 4) as usize)
             .unwrap();
+        self.sdl_canvas.clear();
         self.sdl_canvas.copy(&texture, None, None).unwrap();
         self.sdl_canvas.present();
     }
 
     fn data_raw(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const u8, self.data.len() * 4) }
+        unsafe {
+            std::slice::from_raw_parts(
+                self.data.borrow().as_ptr() as *const u8,
+                self.data.borrow().len() * 4,
+            )
+        }
     }
 
-    fn main_loop(&mut self) -> impl FnOnce() + '_ {
+    fn main_loop(&mut self) {
+        let ppu = Rc::new(RefCell::new(PPU::new(Rc::clone(&self.data))));
+        let mut cpu = Cpu::new(Rc::clone(&ppu));
+        let rom = NROM::from_ines_rom(
+            "donkey_kong.nes",
+            &mut ppu.borrow_mut().vram,
+            &mut cpu.memory,
+        )
+        .unwrap();
 
-        let mut events = self.ctx.borrow_mut().event_pump().unwrap();
+        cpu.init_pc();
+        // cpu.generate_nmi();
 
-        move || {
-            let mut ppu = Rc::new(RefCell::new(PPU::new(&mut self.data)));
-            let mut vram = ppu::memory::VRAM::new();
-            let mut cpu = Cpu::new(ppu.borrow_mut());
-            let rom = NROM::from_ines_rom("donkey_kong.nes", &mut vram, &mut cpu.memory).unwrap();
-
+        loop {
+            let mut events = self.ctx.borrow_mut().event_pump().unwrap();
             for event in events.poll_iter() {
                 match event {
                     Event::Quit { .. }
@@ -123,27 +139,81 @@ impl Display {
                 }
             }
 
-            cpu.tick((341 / 3) as usize); // runs cpu for equivalent num_cycles
-            ppu.tick(); // runs ppu for 1 scanline
+            if cpu.num_cycles > 100000 {
+                // error!("{:#?}", &ppu.borrow().vram.buffer[0x2100..0x2200]);
+                // panic!();
+            }
 
-            if ppu.is_vblank {
+            cpu.tick((341 / 3) as usize); // runs cpu for equivalent num_cycles
+            ppu.borrow_mut().tick(); // runs ppu for 1 scanline
+
+            if ppu.borrow().is_vblank {
                 self.flush();
+
+                if ppu.borrow().curr_scanline == 241 || ppu.borrow().generate_nmi {
+                    cpu.generate_nmi();
+                }
             }
         }
+    }
+
+    pub fn display_pattern_table(&mut self, ppu: Rc<RefCell<PPU>>) {
+        let palette = [
+            BLACK,
+            Color::RGB(219, 1, 84),
+            Color::RGB(82, 221, 78),
+            Color::RGB(143, 225, 237),
+        ];
+        let pixsize: usize = 3;
+        let tile_size: usize = pixsize * 8;
+        let mut last_tile_pos = 0x1000;
+        for k in 0..256 {
+            let tile = &ppu.borrow().vram.buffer[last_tile_pos..(last_tile_pos + 16)];
+            for r in 0..8 {
+                for c in 0..8 {
+                    let first_bit = (tile[r].reverse_bits() >> c) & 1;
+                    let second_bit = (tile[r + 8].reverse_bits() >> c) & 1;
+                    let color_index = (second_bit << 1) | first_bit;
+                    let color = palette[color_index as usize];
+
+                    // draw pixel with color at given square coordinates
+                    self.sdl_canvas.set_draw_color(color);
+                    let x_offset = (k * tile_size) % self.width as usize;
+                    let y_offset = ((k * tile_size) / self.width as usize) * tile_size;
+                    let x = r * pixsize + x_offset; // X-coordinate
+                    let y = c * pixsize + y_offset; // Y-coordinate
+                    self.sdl_canvas
+                        .fill_rect(Rect::new(
+                            y as i32,
+                            x as i32,
+                            pixsize as u32,
+                            pixsize as u32,
+                        ))
+                        .unwrap();
+                }
+            }
+            last_tile_pos = last_tile_pos + 16;
+        }
+
+        self.sdl_canvas.present();
     }
 }
 
 fn main() {
+    CombinedLogger::init(vec![TermLogger::new(
+        LevelFilter::Info,
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )])
+    .unwrap();
     let mut canvas = Display::new(256, 240);
 
-    #[cfg(target_family = "wasm")]
-    emscripten::set_main_loop_callback(canvas.main_loop());
+    // #[cfg(target_family = "wasm")]
+    // emscripten::set_main_loop_callback(canvas.main_loop());
 
     #[cfg(not(target_family = "wasm"))]
     {
-        loop {
-            canvas.main_loop()();
-            sleep(Duration::from_millis(10));
-        }
+        canvas.main_loop();
     }
 }

@@ -7,11 +7,11 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'xines'",
+            "name": "Debug PPU",
             "cargo": {
-                "args": ["build", "--bin=xines", "--package=xines"],
+                "args": ["build", "--bin=test_ppu"],
                 "filter": {
-                    "name": "xines",
+                    "name": "test_ppu",
                     "kind": "bin"
                 }
             },

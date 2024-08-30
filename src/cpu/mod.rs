@@ -1,6 +1,10 @@
-use std::sync::mpsc::{Receiver, Sender};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::mpsc::{Receiver, Sender},
+};
 
-use log::info;
+use log::{error, info};
 use memory::MemoryAccessLog;
 
 use crate::ppu::PPU;
@@ -9,15 +13,15 @@ pub mod jsontest;
 pub mod memory;
 pub mod registers;
 
-pub struct Cpu<'s> {
-    pub memory: memory::Memory<'s>,
+pub struct Cpu {
+    pub memory: memory::Memory,
     pub registers: registers::Registers,
 
     pub num_cycles: usize, // elapsed # of cycles
 }
 
-impl<'s> Cpu<'s> {
-    pub fn new(ppu: &'s mut PPU<'s>) -> Self {
+impl Cpu {
+    pub fn new(ppu: Rc<RefCell<PPU>>) -> Self {
         Self {
             memory: memory::Memory::new(ppu),
             registers: registers::Registers::new(),
@@ -26,8 +30,7 @@ impl<'s> Cpu<'s> {
     }
 
     pub fn init_pc(&mut self) {
-        // self.registers.program_counter = self.memory.fetch_indirect(0xFFFC);
-        self.registers.program_counter = 0xC000;
+        self.registers.program_counter = self.fetch_u16(0xFFFC);
         info!("Initialize PC = {:x}", self.registers.program_counter);
     }
 
@@ -2179,7 +2182,7 @@ impl<'s> Cpu<'s> {
      *   Cycles: 7
      */
 
-    fn brk_implied(&mut self) -> u8 {
+    pub fn brk_implied(&mut self) -> u8 {
         let pc_high = ((self.registers.program_counter + 2) >> 8) as u8;
         self.stack_push(pc_high);
 
@@ -2193,6 +2196,26 @@ impl<'s> Cpu<'s> {
         let irq_vector_high = self.memory.fetch_absolute(0xFFFF) as u16;
         let irq_vector = irq_vector_low | (irq_vector_high << 8);
         self.registers.program_counter = irq_vector;
+
+        // self.registers.set_break();
+        self.registers.set_interrupt_disable();
+
+        7
+    }
+
+    pub fn generate_nmi(&mut self) -> u8 {
+        let pc_high = ((self.registers.program_counter) >> 8) as u8;
+        self.stack_push(pc_high);
+
+        let pc_low = ((self.registers.program_counter) & 0xFF) as u8;
+        self.stack_push(pc_low);
+
+        self.stack_push(self.registers.processor_status);
+
+        let nmi_vector_low = self.memory.fetch_absolute(0xFFFA) as u16;
+        let nmi_vector_high = self.memory.fetch_absolute(0xFFFB) as u16;
+        let nmi_vector = nmi_vector_low | (nmi_vector_high << 8);
+        self.registers.program_counter = nmi_vector;
 
         // self.registers.set_break();
         self.registers.set_interrupt_disable();
@@ -3176,6 +3199,5 @@ impl<'s> Cpu<'s> {
         while self.num_cycles - start_cycles < dur_cycles {
             self.tick_ins();
         }
-
     }
 }

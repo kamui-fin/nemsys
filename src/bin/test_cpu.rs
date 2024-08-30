@@ -4,9 +4,11 @@
 extern crate log;
 extern crate simplelog;
 
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::Write;
 use std::panic;
+use std::rc::Rc;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 
@@ -68,9 +70,9 @@ fn run_nestest() -> Result<()> {
     ])
     .unwrap();
 
-    let mut temp_fb = vec![];
-    let mut ppu = PPU::new(&mut temp_fb);
-    let mut cpu = Cpu::new(&mut ppu);
+    let temp_fb = Rc::new(RefCell::new(vec![]));
+    let ppu = Rc::new(RefCell::new(PPU::new(Rc::clone(&temp_fb))));
+    let mut cpu = Cpu::new(Rc::clone(&ppu));
     let mem = &mut cpu.memory;
     let mut vram = VRAM::new(); // unused for our tests
 
@@ -159,9 +161,9 @@ fn assert_cpu_test_state(state: CpuTestState, cpu: &Cpu) {
 }
 
 fn test_instruction(case: InstructionTestCase) {
-    let mut temp_fb = Vec::new();
-    let mut ppu = PPU::new(&mut temp_fb);
-    let mut cpu = Cpu::new(&mut ppu);
+    let temp_fb = Rc::new(RefCell::new(vec![]));
+    let ppu = Rc::new(RefCell::new(PPU::new(Rc::clone(&temp_fb))));
+    let mut cpu = Cpu::new(Rc::clone(&ppu));
 
     let initial_state = case.initial;
     init_cpu_test_state(initial_state.clone(), &mut cpu);

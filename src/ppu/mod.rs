@@ -2,8 +2,10 @@
 pub mod emscripten;
 pub mod memory;
 
-use std::collections::VecDeque;
+use std::{cell::RefCell, cmp::max, collections::VecDeque, rc::Rc};
 
+use clap::error;
+use log::error;
 use memory::VRAM;
 use sdl2::pixels::Color;
 
@@ -90,14 +92,14 @@ pub enum PatternTableType {
 }
 
 impl PatternTable {
-    pub fn from_memory(ptype: PatternTableType, vram: &VRAM) -> Self {
+    pub fn from_memory(ptype: PatternTableType, vram: &VRAM, addr: u16) -> Self {
         let mut tile_map = [[0; 16]; 256];
-        let mut last_tile_pos = 0x0000;
         let mem_range = match ptype {
-            PatternTableType::Background => 256..512,
-            PatternTableType::Sprite => 0..256,
+            PatternTableType::Background => 0x1000..0x1FFF,
+            PatternTableType::Sprite => 0x0000..0x0FFF,
         };
-        for k in mem_range {
+        let mut last_tile_pos = addr as usize;
+        for k in 0..256 {
             let tile = &vram.buffer[last_tile_pos..(last_tile_pos + 16)];
             tile_map[k].copy_from_slice(tile);
             // for i in 0..8 {
@@ -110,6 +112,7 @@ impl PatternTable {
             // }
             last_tile_pos = last_tile_pos + 16;
         }
+        // println!("{:?}", tile_map[36]);
         Self { tile_map }
     }
 }
@@ -329,18 +332,18 @@ impl Sprite {
     }
 }
 
-pub struct PPU<'a> {
+pub struct PPU {
     pub num_cycles: usize,
-    pub curr_row: usize,
-    pub curr_col: usize,
+    pub curr_tile_row: usize,
+    pub curr_tile_col: usize,
     pub curr_scanline: i32,
     secondary_oam: SEC_OAM,
-    fb: &'a mut Vec<u32>,
+    fb: Rc<RefCell<Vec<u32>>>,
 
     nametable_queue: VecDeque<TileFetch>,
     sprite_queue: VecDeque<Sprite>,
 
-    vram: VRAM,
+    pub vram: VRAM,
     oam: OAM,
 
     // internal registers
@@ -354,7 +357,7 @@ pub struct PPU<'a> {
     bg_pattern_address: u16,
     sprite_size: bool,
     mode: bool,
-    generate_nmi: bool,
+    pub generate_nmi: bool,
     master_slave_select: bool,
     num_sprites: usize,
     pub is_vblank: bool,
@@ -391,6 +394,7 @@ fn set_bit(num: usize, idx: u8) -> u8 {
 //     unimplemented!()
 // }
 
+#[derive(Debug)]
 pub struct TileFetch {
     nt_byte: u8,
     attr_two_bit: u8,
@@ -398,8 +402,8 @@ pub struct TileFetch {
     pt_hi_byte: u8,
 }
 
-impl<'a> PPU<'a> {
-    pub fn new(fb: &'a mut Vec<u32>) -> Self {
+impl PPU {
+    pub fn new(fb: Rc<RefCell<Vec<u32>>>) -> Self {
         Self {
             vram: VRAM::new(),
             oam: OAM::new(),
@@ -407,8 +411,8 @@ impl<'a> PPU<'a> {
             fb,
 
             num_cycles: 0,
-            curr_row: 0,
-            curr_col: 0,
+            curr_tile_row: 0,
+            curr_tile_col: 0,
             curr_scanline: 0,
 
             secondary_oam: SEC_OAM::new(),
@@ -451,6 +455,7 @@ impl<'a> PPU<'a> {
 
     /// $2000
     pub fn ppu_ctrl(&mut self, value: u8) {
+        error!("PPUCTRL: {:b}", value);
         self.base_nametable_address = match value & 0b11 {
             0 => 0x2000,
             1 => 0x2400,
@@ -458,7 +463,7 @@ impl<'a> PPU<'a> {
             3 => 0x2C00,
             _ => 0x0000, // will never hit
         };
-        self.increment = if get_bit(value.into(), 2) == 1 { 1 } else { 32 };
+        self.increment = if get_bit(value.into(), 2) == 0 { 1 } else { 32 };
         self.sprite_pattern_address = if get_bit(value.into(), 3) == 1 {
             0x1000
         } else {
@@ -476,6 +481,8 @@ impl<'a> PPU<'a> {
 
     /// $2001
     pub fn ppu_mask(&mut self, value: u8) {
+        error!("PPUMASK {:b}", value);
+
         self.is_greyscale = get_bit(value.into(), 0) == 1;
         self.clip_background = get_bit(value.into(), 1) == 1;
         self.clip_sprites = get_bit(value.into(), 2) == 1;
@@ -488,6 +495,7 @@ impl<'a> PPU<'a> {
 
     /// $2002
     pub fn ppu_status(&mut self) -> u8 {
+        error!("PPUSTATUS");
         // 7  bit  0
         // ---- ----
         // VSO. ....
@@ -537,7 +545,7 @@ impl<'a> PPU<'a> {
     }
 
     /// $2004
-    pub fn oam_data_read(&mut self) -> u8 {
+    pub fn oam_data_read(&self) -> u8 {
         self.oam.sprite_info[self.oam_address as usize]
     }
 
@@ -562,40 +570,43 @@ impl<'a> PPU<'a> {
 
     /// $2006
     pub fn ppu_addr(&mut self, value: u8) {
+        error!("PPUADDR {:x}", value);
         if !self.w {
             // update low byte of t
-            self.t = value as u16;
+            self.t = (value as u16) << 8;
             self.w = true;
         } else {
             // update high byte of t
-            self.t |= (value as u16) << 8;
+            self.t |= value as u16;
             self.v = self.t;
+            self.w = false;
         }
     }
 
     // $2007
     pub fn ppu_data_read(&mut self) -> u8 {
+        error!("CPU reading from VRAM at address {:x}", self.v);
         let old_buffer = self.read_buffer;
 
         let read_result = self.vram.get(self.v.into());
         self.read_buffer = read_result;
 
         // increment v by bit 2 of $2000 of VRAM
-        self.v = self
-            .v
-            .wrapping_add(((self.vram.get(0x2000) & 0b10) >> 1) as u16);
+        self.v = (self.v + self.increment as u16) % 0x4000;
 
         old_buffer
     }
 
     /// $2007
     pub fn ppu_data_write(&mut self, value: u8) {
+        error!(
+            "CPU writing to VRAM at address {:x} <--- {:x}",
+            self.v, value
+        );
         self.vram.set(self.v.into(), value);
 
         // increment v by bit 2 of $2000 of VRAM
-        self.v = self
-            .v
-            .wrapping_add(((self.vram.get(0x2000) & 0b10) >> 1) as u16);
+        self.v = (self.v + self.increment as u16) % 0x4000;
     }
 
     /// $4014
@@ -604,18 +615,25 @@ impl<'a> PPU<'a> {
     }
 
     pub fn fetch_bg_tile(&mut self) -> TileFetch {
-        let pt_bg = PatternTable::from_memory(PatternTableType::Background, &mut self.vram);
+        let pt_bg = PatternTable::from_memory(
+            PatternTableType::Background,
+            &mut self.vram,
+            self.bg_pattern_address,
+        );
 
         // 8 cycles of fetch + store to shift registers (BACKGROUND)
         let nt_byte_addr =
-            self.base_nametable_address + self.curr_row * 32 + self.curr_col as usize;
+            self.base_nametable_address + self.curr_tile_row * 32 + self.curr_tile_col as usize;
         let nt_byte = self.vram.get(nt_byte_addr);
-        let attr_byte_offset = (self.curr_row / 4) * 4 + (self.curr_col / 4) + 1;
+        // if nt_byte != 0 {
+        // error!("{nt_byte}");
+        // }
+        let attr_byte_offset = (self.curr_tile_row / 4) * 4 + (self.curr_tile_col / 4) + 1;
         let attr_byte = self
             .vram
             .get(self.base_nametable_address + 960 + attr_byte_offset);
-        let block_i = self.curr_row % 4;
-        let block_j = self.curr_col % 4;
+        let block_i = self.curr_tile_row % 4;
+        let block_j = self.curr_tile_col % 4;
         let quad = if block_i < 2 {
             if block_j < 2 {
                 1
@@ -636,8 +654,10 @@ impl<'a> PPU<'a> {
             4 => (attr_byte & 0b1100_0000) >> 6,
             _ => 0,
         };
-        let pt_low_byte = pt_bg.tile_map[nt_byte as usize][(self.curr_scanline % 8) as usize];
-        let pt_hi_byte = pt_bg.tile_map[nt_byte as usize][(self.curr_scanline % 8) as usize];
+        let pt_low_byte =
+            pt_bg.tile_map[nt_byte as usize][(max(self.curr_scanline, 0) % 8) as usize];
+        let pt_hi_byte =
+            pt_bg.tile_map[nt_byte as usize][((max(self.curr_scanline, 0) % 8) + 8) as usize];
 
         TileFetch {
             nt_byte,
@@ -645,6 +665,122 @@ impl<'a> PPU<'a> {
             pt_low_byte,
             pt_hi_byte,
         }
+    }
+    pub fn render_tile(&mut self, tile_data: TileFetch) {
+        // for now we'll only render background tile_data
+        let palette = Palette::new(PaletteIndex::Bg(tile_data.attr_two_bit));
+        if tile_data.nt_byte != 0 {
+            // println!("{:#?}", tile_data);
+            // println!("{:#?}", palette.get_colors(&self.vram));
+            // panic!();
+        }
+        let pix_row = self.curr_scanline as usize;
+        let pix_col = self.curr_tile_col * 8;
+        for i in 0..8 {
+            let first_bit = (tile_data.pt_low_byte.reverse_bits() >> i) & 1;
+            let second_bit = (tile_data.pt_low_byte.reverse_bits() >> i) & 1;
+            let color = (second_bit << 1) | first_bit;
+            // if tile_data.nt_byte > 0 {
+            //     error!(
+            //         "Scanline: {} -> Rendering pixel ({}, {}) with color {color}",
+            //         self.curr_scanline,
+            //         pix_row,
+            //         pix_col + i
+            //     );
+            // }
+            let (r, g, b) = if color < 0 {
+                // transparent pixel
+                (255, 255, 255)
+            } else {
+                palette.get_color(&self.vram, color.into())
+            };
+            self.fb.borrow_mut()[(pix_row * 256 + pix_col + i) as usize] = Color::RGB(r, g, b)
+                .to_u32(&sdl2::pixels::PixelFormatEnum::RGBA8888.try_into().unwrap());
+        }
+    }
+
+    pub fn tick_scanline(&mut self, should_render: bool) {
+        // Cycles 0
+        // ---- IDLE ----
+
+        // Cycles 1-256
+        // 8 sets of 8-cycle BG tile fetches, sprite evaluation, render BG tile
+        self.curr_tile_col = 0;
+        for _ in 0..30 {
+            // render THEN fetch
+            if should_render {
+                let bg_tile_data = self.nametable_queue.pop_front();
+                if let Some(bg_tile_data) = bg_tile_data {
+                    self.render_tile(bg_tile_data); // also needs to take the current sprite_queue into account
+                }
+            }
+            self.curr_tile_col += 1;
+
+            let next_tile_fetch = self.fetch_bg_tile();
+            self.nametable_queue.push_back(next_tile_fetch);
+        }
+
+        if should_render {
+            for _ in 0..2 {
+                if should_render {
+                    let bg_tile_data = self.nametable_queue.pop_front();
+                    if let Some(bg_tile_data) = bg_tile_data {
+                        self.render_tile(bg_tile_data);
+                    }
+                }
+                self.curr_tile_col += 1;
+            }
+        }
+
+        self.evaluate_sprite();
+
+        // Cycles 257-320
+        self.fetch_sprite_data();
+
+        // Cycles 321-336
+        // replenish queue
+        self.nametable_queue = VecDeque::from(vec![self.fetch_bg_tile(), self.fetch_bg_tile()]);
+
+        // Cycles 337-340
+        // fetch tile 3 of next scanline two times
+        // don't think we ACTUALLY need to perform the fetch, just waste the 3 cycles
+
+        self.num_cycles += 341;
+    }
+
+    pub fn noop_scanline(&mut self) {
+        self.num_cycles += 341;
+    }
+
+    pub fn tick(&mut self) {
+        match self.curr_scanline {
+            -1 => {
+                // Scanline -1 (PRE)
+                self.is_vblank = false;
+                self.tick_scanline(false);
+            }
+            0..=239 => {
+                // Scanline 0 - 239 (VISIBLE)
+                self.tick_scanline(true);
+            }
+            240 => {
+                // Scanline 240 (IDLE)
+                self.noop_scanline();
+            }
+            241..=260 => {
+                // Scanline 241-260 (VBLANK)
+                self.is_vblank = true;
+                // frame's pixels are ready to be displayed now
+                // Invoke NMI ?
+                self.noop_scanline();
+            }
+            _ => {
+                self.curr_scanline = -2;
+            }
+        };
+
+        self.curr_scanline += 1;
+        self.curr_tile_row = (self.curr_scanline / 8) as usize;
     }
 
     /// Clear the Secondary OAM from the previous scanline
@@ -741,86 +877,5 @@ impl<'a> PPU<'a> {
                 pattern_hi,
             ));
         }
-    }
-
-    // TODO
-    pub fn render_tile(&mut self, tile_data: TileFetch) {
-        // for now we'll only render background tile_data
-        let palette = Palette::new(PaletteIndex::Bg(tile_data.attr_two_bit));
-        let pix_row = self.curr_row * 8;
-        let mut pix_col = self.curr_col * 8;
-        for _ in 0..8 {
-            let color = ((tile_data.pt_hi_byte & 0b1000_0000) >> 6) | ((tile_data.pt_low_byte & 0b1000_0000) >> 7);
-            let (r, g, b) = palette.get_color(&self.vram, color.into());
-            self.fb[(pix_row * 256 + pix_col) as usize] = Color::RGB(r, g, b).to_u32(&sdl2::pixels::PixelFormatEnum::RGBA8888.try_into().unwrap());
-            pix_col += 1;
-        }
-    }
-
-    pub fn tick_scanline(&mut self, should_render: bool) {
-        // Cycles 0
-        // ---- IDLE ----
-
-        // Cycles 1-256
-        // 8 sets of 8-cycle BG tile fetches, sprite evaluation, render BG tile
-        for _ in 0..30 {
-            // render THEN fetch
-            if should_render {
-                let bg_tile_data = self.nametable_queue.pop_front().unwrap();
-                self.render_tile(bg_tile_data); // also needs to take the current sprite_queue into account
-            }
-
-            let next_tile_fetch = self.fetch_bg_tile();
-            self.nametable_queue.push_back(next_tile_fetch);
-        }
-
-        self.evaluate_sprite();
-
-        // Cycles 257-320
-        self.fetch_sprite_data();
-
-        // Cycles 321-336
-        // replenish queue
-        self.nametable_queue = VecDeque::from(vec![self.fetch_bg_tile(), self.fetch_bg_tile()]);
-
-        // Cycles 337-340
-        // fetch tile 3 of next scanline two times
-        // don't think we ACTUALLY need to perform the fetch, just waste the 3 cycles
-
-        self.num_cycles += 341;
-    }
-
-    pub fn noop_scanline(&mut self) {
-        self.num_cycles += 341;
-    }
-
-    pub fn tick(&mut self) {
-        match self.curr_scanline {
-            -1 => {
-                // Scanline -1 (PRE)
-                self.is_vblank = false;
-                self.tick_scanline(false);
-            },
-            0..=239 => {
-                // Scanline 0 - 239 (VISIBLE)
-                self.tick_scanline(true);
-            },
-            240 => {
-                // Scanline 240 (IDLE)
-                self.noop_scanline();
-            },
-            241..=260 => {
-                // Scanline 241-260 (VBLANK)
-                self.is_vblank = true;
-                // frame's pixels are ready to be displayed now
-                // Invoke NMI ?
-                self.noop_scanline();
-            }
-            _ => {
-                self.curr_scanline = -2;
-            }
-        };
-
-        self.curr_scanline += 1;
     }
 }

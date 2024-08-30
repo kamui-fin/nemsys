@@ -68,7 +68,8 @@ fn run_nestest() -> Result<()> {
     ])
     .unwrap();
 
-    let mut ppu = PPU::new();
+    let mut temp_fb = vec![];
+    let mut ppu = PPU::new(&mut temp_fb);
     let mut cpu = Cpu::new(&mut ppu);
     let mem = &mut cpu.memory;
     let mut vram = VRAM::new(); // unused for our tests
@@ -82,7 +83,7 @@ fn run_nestest() -> Result<()> {
     let target_period = (1.0 / (1.789773 * 1e6)) * 1e9;
 
     while cpu.num_cycles < 270_000 {
-        cpu.tick();
+        cpu.tick_ins();
         cpu.memory.databus_logger.clear();
 
         let actual_period =
@@ -158,13 +159,14 @@ fn assert_cpu_test_state(state: CpuTestState, cpu: &Cpu) {
 }
 
 fn test_instruction(case: InstructionTestCase) {
-    let mut ppu = PPU::new();
+    let mut temp_fb = Vec::new();
+    let mut ppu = PPU::new(&mut temp_fb);
     let mut cpu = Cpu::new(&mut ppu);
 
     let initial_state = case.initial;
     init_cpu_test_state(initial_state.clone(), &mut cpu);
 
-    cpu.tick();
+    cpu.tick_ins();
 
     let final_state = case.r#final;
     assert_cpu_test_state(final_state, &cpu); // assert after

@@ -53,11 +53,11 @@ impl DatabusLogger {
 pub struct Memory<'s> {
     pub buffer: Vec<u8>,
     pub databus_logger: DatabusLogger,
-    pub ppu: &'s mut PPU,
+    pub ppu: &'s mut PPU<'s>,
 }
 
 impl<'s> Memory<'s> {
-    pub fn new(ppu: &'s mut PPU) -> Self {
+    pub fn new(ppu: &'s mut PPU<'s>) -> Self {
         Self {
             buffer: vec![0; 0xFFFF + 1],
             databus_logger: DatabusLogger::new(),

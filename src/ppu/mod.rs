@@ -5,6 +5,7 @@ pub mod memory;
 use std::collections::VecDeque;
 
 use memory::VRAM;
+use sdl2::pixels::Color;
 
 type RGB = (u8, u8, u8);
 
@@ -328,13 +329,13 @@ impl Sprite {
     }
 }
 
-pub struct PPU {
-    num_cycles: usize,
-
-    curr_row: usize,
-    curr_col: usize,
-    curr_scanline: u8,
+pub struct PPU<'a> {
+    pub num_cycles: usize,
+    pub curr_row: usize,
+    pub curr_col: usize,
+    pub curr_scanline: i32,
     secondary_oam: SEC_OAM,
+    fb: &'a mut Vec<u32>,
 
     nametable_queue: VecDeque<TileFetch>,
     sprite_queue: VecDeque<Sprite>,
@@ -356,7 +357,7 @@ pub struct PPU {
     generate_nmi: bool,
     master_slave_select: bool,
     num_sprites: usize,
-    is_vblank: bool,
+    pub is_vblank: bool,
     sprite_hit: bool,
     sprite_overflow: bool,
 
@@ -390,12 +391,20 @@ fn set_bit(num: usize, idx: u8) -> u8 {
 //     unimplemented!()
 // }
 
-impl PPU {
-    pub fn new() -> Self {
+pub struct TileFetch {
+    nt_byte: u8,
+    attr_two_bit: u8,
+    pt_low_byte: u8,
+    pt_hi_byte: u8,
+}
+
+impl<'a> PPU<'a> {
+    pub fn new(fb: &'a mut Vec<u32>) -> Self {
         Self {
             vram: VRAM::new(),
             oam: OAM::new(),
             oam_address: 0,
+            fb,
 
             num_cycles: 0,
             curr_row: 0,
@@ -516,6 +525,7 @@ impl PPU {
         if self.is_vblank {
             val = set_bit(val.into(), 7);
         }
+        self.is_vblank = false;
         val
     }
 
@@ -647,11 +657,12 @@ impl PPU {
     /// Evaluate Sprites for next line
     /// Cycles 65 - 256 (occcurs concurrently with background fetching and current scanline rendering)
     pub fn evaluate_sprite(&mut self) {
+        let curr_scanline = self.curr_scanline as u8;
         for i in 0..64 {
             let curr_y = self.oam.sprite_info[i * 4];
-            if curr_y <= self.curr_scanline
-                && (self.sprite_size && self.curr_scanline < curr_y.wrapping_add(16)
-                    || !self.sprite_size && self.curr_scanline < curr_y.wrapping_add(8))
+            if curr_y <= curr_scanline
+                && (self.sprite_size && curr_scanline < curr_y.wrapping_add(16)
+                    || !self.sprite_size && curr_scanline < curr_y.wrapping_add(8))
             {
                 if self.num_sprites < 8 {
                     for k in 0..4 {
@@ -676,9 +687,7 @@ impl PPU {
             let attribute_byte = self.secondary_oam.sprite_info[i * 4 + 2];
             let x = self.secondary_oam.sprite_info[i * 4 + 3];
 
-            let sprite_height = if self.sprite_size { 16 } else { 8 };
-
-            let mut curr_row = (self.curr_scanline - y) % sprite_height;
+            let mut curr_row = (self.curr_scanline as u8 - y) % 8;
             let mut actual_address = self.sprite_pattern_address;
 
             if self.sprite_size {
@@ -735,7 +744,18 @@ impl PPU {
     }
 
     // TODO
-    pub fn render_tile(&mut self, tile_data: TileFetch) {}
+    pub fn render_tile(&mut self, tile_data: TileFetch) {
+        // for now we'll only render background tile_data
+        let palette = Palette::new(PaletteIndex::Bg(tile_data.attr_two_bit));
+        let pix_row = self.curr_row * 8;
+        let mut pix_col = self.curr_col * 8;
+        for _ in 0..8 {
+            let color = ((tile_data.pt_hi_byte & 0b1000_0000) >> 6) | ((tile_data.pt_low_byte & 0b1000_0000) >> 7);
+            let (r, g, b) = palette.get_color(&self.vram, color.into());
+            self.fb[(pix_row * 256 + pix_col) as usize] = Color::RGB(r, g, b).to_u32(&sdl2::pixels::PixelFormatEnum::RGBA8888.try_into().unwrap());
+            pix_col += 1;
+        }
+    }
 
     pub fn tick_scanline(&mut self, should_render: bool) {
         // Cycles 0
@@ -775,27 +795,32 @@ impl PPU {
     }
 
     pub fn tick(&mut self) {
-        // Scanline -1 (PRE)
-        self.tick_scanline(false);
-        // Scanline 0 - 239 (VISIBLE)
-        for _ in 0..=239 {
-            self.tick_scanline(true);
-        }
-        // Scanline 240 (IDLE)
-        self.noop_scanline();
-        // Scanline 241-260 (VBLANK)
-        self.is_vblank = true;
-        // frame's pixels are ready to be displayed now
-        // Invoke NMI ?
-        for _ in 241..=260 {
-            self.noop_scanline();
-        }
-    }
-}
+        match self.curr_scanline {
+            -1 => {
+                // Scanline -1 (PRE)
+                self.is_vblank = false;
+                self.tick_scanline(false);
+            },
+            0..=239 => {
+                // Scanline 0 - 239 (VISIBLE)
+                self.tick_scanline(true);
+            },
+            240 => {
+                // Scanline 240 (IDLE)
+                self.noop_scanline();
+            },
+            241..=260 => {
+                // Scanline 241-260 (VBLANK)
+                self.is_vblank = true;
+                // frame's pixels are ready to be displayed now
+                // Invoke NMI ?
+                self.noop_scanline();
+            }
+            _ => {
+                self.curr_scanline = -2;
+            }
+        };
 
-pub struct TileFetch {
-    nt_byte: u8,
-    attr_two_bit: u8,
-    pt_low_byte: u8,
-    pt_hi_byte: u8,
+        self.curr_scanline += 1;
+    }
 }

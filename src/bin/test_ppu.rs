@@ -96,23 +96,20 @@ impl Display {
         self.sdl_canvas.present();
     }
 
-    fn draw_pixel(&mut self, x: u32, y: u32, color: u32) {
-        self.data[(y * self.width + x) as usize] = color;
-    }
-
     fn data_raw(&self) -> &[u8] {
         unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const u8, self.data.len() * 4) }
     }
 
     fn main_loop(&mut self) -> impl FnOnce() + '_ {
-        // let mut ppu = PPU::new();
-        // let mut vram = ppu::memory::VRAM::new();
-        // let mut cpu = Cpu::new(&mut ppu);
-        // let rom = NROM::from_ines_rom("donkey_kong.nes", &mut vram, &mut cpu.memory).unwrap();
 
         let mut events = self.ctx.borrow_mut().event_pump().unwrap();
 
         move || {
+            let mut ppu = Rc::new(RefCell::new(PPU::new(&mut self.data)));
+            let mut vram = ppu::memory::VRAM::new();
+            let mut cpu = Cpu::new(ppu.borrow_mut());
+            let rom = NROM::from_ines_rom("donkey_kong.nes", &mut vram, &mut cpu.memory).unwrap();
+
             for event in events.poll_iter() {
                 match event {
                     Event::Quit { .. }
@@ -126,7 +123,12 @@ impl Display {
                 }
             }
 
-            self.flush();
+            cpu.tick((341 / 3) as usize); // runs cpu for equivalent num_cycles
+            ppu.tick(); // runs ppu for 1 scanline
+
+            if ppu.is_vblank {
+                self.flush();
+            }
         }
     }
 }

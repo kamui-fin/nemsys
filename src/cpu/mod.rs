@@ -17,7 +17,7 @@ pub struct Cpu<'s> {
 }
 
 impl<'s> Cpu<'s> {
-    pub fn new(ppu: &'s mut PPU) -> Self {
+    pub fn new(ppu: &'s mut PPU<'s>) -> Self {
         Self {
             memory: memory::Memory::new(ppu),
             registers: registers::Registers::new(),
@@ -3152,7 +3152,7 @@ impl<'s> Cpu<'s> {
         }
     }
 
-    pub fn tick(&mut self) {
+    pub fn tick_ins(&mut self) {
         let opcode = self.memory.fetch_absolute(self.registers.program_counter);
         let old_pc = self.registers.program_counter;
         info!(
@@ -3169,5 +3169,13 @@ impl<'s> Cpu<'s> {
         let (cycles, bytes) = self.decode_execute(opcode);
         self.num_cycles += cycles as usize;
         self.registers.program_counter = self.registers.program_counter.wrapping_add(bytes as u16);
+    }
+
+    pub fn tick(&mut self, dur_cycles: usize) {
+        let start_cycles = self.num_cycles;
+        while self.num_cycles - start_cycles < dur_cycles {
+            self.tick_ins();
+        }
+
     }
 }

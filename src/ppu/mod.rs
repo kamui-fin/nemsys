@@ -2,12 +2,19 @@
 pub mod emscripten;
 pub mod memory;
 
-use std::{cell::RefCell, cmp::max, collections::VecDeque, rc::Rc};
+use std::{
+    cell::RefCell,
+    cmp::{max, min},
+    collections::VecDeque,
+    rc::Rc,
+};
 
 use clap::error;
 use log::error;
 use memory::VRAM;
 use sdl2::pixels::Color;
+
+use crate::utils::{get_bit, set_bit};
 
 type RGB = (u8, u8, u8);
 
@@ -112,7 +119,6 @@ impl PatternTable {
             // }
             last_tile_pos = last_tile_pos + 16;
         }
-        // println!("{:?}", tile_map[36]);
         Self { tile_map }
     }
 }
@@ -260,7 +266,7 @@ impl Palette {
     pub fn get_colors(&self, vram: &VRAM) -> Vec<RGB> {
         let mut colors = vec![MASTER_PALETTE[vram.get((0x3F00)) as usize]];
         for i in 0..3 {
-            colors.push(MASTER_PALETTE[vram.get((self.starting_addr + i)) as usize]);
+            colors.push(MASTER_PALETTE[min(63, vram.get((self.starting_addr + i)) as usize)]);
         }
 
         colors
@@ -381,14 +387,6 @@ pub struct PPU {
 }
 
 // TODO: Reading any PPU port, including write-only ports $2000, $2001, $2003, $2005, $2006, returns the PPU I/O bus's value
-
-fn get_bit(num: usize, i: u8) -> u8 {
-    ((num >> i) & 1) as u8
-}
-
-fn set_bit(num: usize, idx: u8) -> u8 {
-    (num | (1 << idx)) as u8
-}
 
 // fn set_n_bits(num: usize, idx: u8, n: u8) -> u8 {
 //     unimplemented!()
@@ -625,7 +623,7 @@ impl PPU {
         let nt_byte_addr =
             self.base_nametable_address + self.curr_tile_row * 32 + self.curr_tile_col as usize;
         let nt_byte = self.vram.get(nt_byte_addr);
-        let attr_byte_offset = (self.curr_tile_row / 4) * 4 + (self.curr_tile_col / 4) + 1;
+        let attr_byte_offset = (self.curr_tile_row / 4) * 8 + (self.curr_tile_col / 4);
         let attr_byte = self
             .vram
             .get(self.base_nametable_address + 960 + attr_byte_offset);
@@ -663,28 +661,23 @@ impl PPU {
             pt_hi_byte,
         }
     }
-    pub fn render_tile(&mut self, tile_data: TileFetch, curr_tile_row: usize, curr_tile_col: usize) {
+    pub fn render_tile(
+        &mut self,
+        tile_data: TileFetch,
+        curr_tile_row: usize,
+        curr_tile_col: usize,
+    ) {
         // for now we'll only render background tile_data
         let palette = Palette::new(PaletteIndex::Bg(tile_data.attr_two_bit));
         if tile_data.nt_byte != 0 {
-            // println!("{:#?}", tile_data);
-            // println!("{:#?}", palette.get_colors(&self.vram));
             // panic!();
         }
         let pix_row = self.curr_scanline as usize;
         let pix_col = curr_tile_col * 8;
         for i in 0..8 {
             let first_bit = (tile_data.pt_low_byte.reverse_bits() >> i) & 1;
-            let second_bit = (tile_data.pt_low_byte.reverse_bits() >> i) & 1;
+            let second_bit = (tile_data.pt_hi_byte.reverse_bits() >> i) & 1;
             let color = (second_bit << 1) | first_bit;
-            // if tile_data.nt_byte > 0 {
-            //     error!(
-            //         "Scanline: {} -> Rendering pixel ({}, {}) with color {color}",
-            //         self.curr_scanline,
-            //         pix_row,
-            //         pix_col + i
-            //     );
-            // }
             let (r, g, b) = palette.get_color(&self.vram, color.into());
             self.fb.borrow_mut()[(pix_row * 256 + pix_col + i) as usize] = Color::RGB(r, g, b)
                 .to_u32(&sdl2::pixels::PixelFormatEnum::RGBA8888.try_into().unwrap());
@@ -704,7 +697,8 @@ impl PPU {
                 if should_render {
                     let bg_tile_data = self.nametable_queue.pop_front();
                     if let Some(bg_tile_data) = bg_tile_data {
-                        self.render_tile(bg_tile_data, self.curr_tile_row, self.curr_tile_col - 2); // also needs to take the current sprite_queue into account
+                        self.render_tile(bg_tile_data, self.curr_tile_row, self.curr_tile_col - 2);
+                        // also needs to take the current sprite_queue into account
                     }
                 }
 

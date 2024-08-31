@@ -4,13 +4,15 @@ use std::{default, process};
 
 use log::{error, LevelFilter};
 use nemsys::cpu::Cpu;
+use sdl2::video::{Window, WindowContext};
+
 use nemsys::mappers::{Mapper, NROM};
 use nemsys::ppu::{self, PPU};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::{Color, PixelFormat};
 use sdl2::rect::Rect;
-use sdl2::render::{Texture, WindowCanvas};
+use sdl2::render::{Canvas, Texture, WindowCanvas};
 use sdl2::Sdl;
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
 use std::thread::sleep;
@@ -50,7 +52,7 @@ impl Display {
         let video_ctx = ctx.video().unwrap();
 
         let window = match video_ctx
-            .window("Nemsys", width, height)
+            .window("Nemsys", width * 2, height * 2)
             .position_centered()
             .opengl()
             .build()
@@ -99,6 +101,7 @@ impl Display {
             .unwrap();
         self.sdl_canvas.clear();
         self.sdl_canvas.copy(&texture, None, None).unwrap();
+        // Self::draw_grid_over_texture(&mut self.sdl_canvas, &texture, 32, 30).unwrap();
         self.sdl_canvas.present();
     }
 
@@ -111,21 +114,63 @@ impl Display {
         }
     }
 
+    fn draw_grid_over_texture(
+        canvas: &mut Canvas<Window>,
+        texture: &Texture,
+        grid_width: u32,
+        grid_height: u32,
+    ) -> Result<(), String> {
+        // Clear the canvas
+        canvas.set_draw_color(Color::RGB(255, 255, 255));
+        canvas.clear();
+
+        // Get the window size
+        let (window_width, window_height) = canvas.output_size()?;
+
+        // Render the texture
+        canvas.copy(texture, None, None)?;
+
+        // Calculate cell dimensions
+        let cell_width = window_width / grid_width;
+        let cell_height = window_height / grid_height;
+
+        // Set the color for grid lines
+        canvas.set_draw_color(Color::RGB(255, 255, 255));
+
+        // Draw vertical lines
+        for x in 1..grid_width {
+            canvas.draw_line(
+                ((x * cell_width) as i32, 0i32),
+                ((x * cell_width) as i32, window_height as i32),
+            )?;
+        }
+
+        // Draw horizontal lines
+        for y in 1..grid_height {
+            canvas.draw_line(
+                (0 as i32, (y * cell_height) as i32),
+                (window_width as i32, (y * cell_height) as i32),
+            )?;
+        }
+
+        Ok(())
+    }
+
     fn main_loop(&mut self) {
+        let mut events = self.ctx.borrow_mut().event_pump().unwrap();
+
         let ppu = Rc::new(RefCell::new(PPU::new(Rc::clone(&self.data))));
         let mut cpu = Cpu::new(Rc::clone(&ppu));
         let rom = NROM::from_ines_rom(
-            "donkey_kong.nes",
+            "test_buttons.nes",
             &mut ppu.borrow_mut().vram,
             &mut cpu.memory,
         )
         .unwrap();
 
         cpu.init_pc();
-        
 
         loop {
-            let mut events = self.ctx.borrow_mut().event_pump().unwrap();
             for event in events.poll_iter() {
                 match event {
                     Event::Quit { .. }
@@ -134,6 +179,38 @@ impl Display {
                         ..
                     } => {
                         process::exit(1);
+                    }
+                    Event::KeyDown {
+                        keycode:
+                            Some(
+                                key @ (Keycode::A
+                                | Keycode::S
+                                | Keycode::MINUS
+                                | Keycode::EQUALS
+                                | Keycode::UP
+                                | Keycode::DOWN
+                                | Keycode::LEFT
+                                | Keycode::RIGHT),
+                            ),
+                        ..
+                    } => {
+                        cpu.memory.input.handle_keypress(key);
+                    }
+                    Event::KeyUp {
+                        keycode:
+                            Some(
+                                key @ (Keycode::A
+                                | Keycode::S
+                                | Keycode::MINUS
+                                | Keycode::EQUALS
+                                | Keycode::UP
+                                | Keycode::DOWN
+                                | Keycode::LEFT
+                                | Keycode::RIGHT),
+                            ),
+                        ..
+                    } => {
+                        cpu.memory.input.handle_release(key);
                     }
                     _ => {}
                 }
